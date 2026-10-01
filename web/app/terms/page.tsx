@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
 import { LegalPage, type LegalSection } from "@/components/LegalPage";
 import { site } from "@/lib/site";
+import { JsonLd } from "@/components/JsonLd";
+import { breadcrumbSchema, pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Terms of Service", description: "The terms that apply when you use Vendo's apps, website and delivery services." };
+export const metadata: Metadata = pageMetadata({
+  title: "Terms of Service",
+  description: "The terms that apply when you use Vendo’s apps, website, food delivery and dispatch services.",
+  path: "/terms/",
+  keywords: [],
+});
 
 const sections: LegalSection[] = [
   {
@@ -151,5 +158,10 @@ const sections: LegalSection[] = [
 ];
 
 export default function TermsPage() {
-  return <LegalPage eyebrow="Legal" title="Terms of Service" lead="The rules for using Vendo's apps, website and delivery services." sections={sections} />;
+  return (
+    <>
+      <JsonLd data={breadcrumbSchema([{ name: "Terms of Service", path: "/terms/" }])} />
+      <LegalPage eyebrow="Legal" title="Terms of Service" lead="The rules for using Vendo's apps, website and delivery services." sections={sections} />
+    </>
+  );
 }

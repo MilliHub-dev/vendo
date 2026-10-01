@@ -5,11 +5,15 @@ import { CtaBanner } from "@/components/CtaBanner";
 import { PageHero } from "@/components/PageHero";
 import { site } from "@/lib/site";
 import { Art } from "@/components/Art";
+import { JsonLd } from "@/components/JsonLd";
+import { breadcrumbSchema, pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "About Us",
-  description: "Vendo is a Nigerian delivery company connecting customers with local food vendors and on-demand bike dispatch.",
-};
+export const metadata: Metadata = pageMetadata({
+  title: "About Us — Nigerian Delivery & Dispatch Company",
+  description: "Vendo Limited is a Kaduna-based delivery company: food delivery and same-day motorcycle dispatch in Abuja, Kaduna, Kano and Lagos. Our mission and values.",
+  path: "/about/",
+  keywords: ["about Vendo", "Vendo Limited", "delivery company Kaduna", "logistics company Nigeria"],
+});
 
 const values = [
   { icon: Zap, title: "Speed that's honest", text: "Accurate ETAs and live tracking — no guessing where your order is." },
@@ -21,6 +25,7 @@ const values = [
 export default function AboutPage() {
   return (
     <>
+      <JsonLd data={breadcrumbSchema([{ name: "About Us", path: "/about/" }])} />
       <PageHero
         eyebrow="About Vendo"
         title={
@@ -57,6 +62,22 @@ export default function AboutPage() {
               wallet payments and delivery you can verify. We&apos;re launching across {site.cities.join(", ").replace(/, ([^,]*)$/, " and $1")} —
               including cities existing platforms underserve.
             </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="section-tight">
+        <div className="container">
+          <div className="facts">
+            <h2 className="h-3">Vendo at a glance</h2>
+            <dl>
+              <div><dt>Company</dt><dd>{site.legalName}</dd></div>
+              <div><dt>What we do</dt><dd>Food delivery from local vendors and same-day motorcycle dispatch for parcels and documents</dd></div>
+              <div><dt>Cities</dt><dd>{site.cities.join(", ")}</dd></div>
+              <div><dt>Head office</dt><dd>{site.address}</dd></div>
+              <div><dt>How to book</dt><dd>WhatsApp {site.phones[0]} — Vendo app coming soon</dd></div>
+              <div><dt>Payments</dt><dd>Paystack (card, transfer, USSD) and Vendo Wallet</dd></div>
+            </dl>
           </div>
         </div>
       </section>

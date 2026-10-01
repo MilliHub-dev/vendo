@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
 import { LegalPage, type LegalSection } from "@/components/LegalPage";
 import { site } from "@/lib/site";
+import { JsonLd } from "@/components/JsonLd";
+import { breadcrumbSchema, pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Licenses", description: "Trademarks, content ownership and open-source licenses used by the Vendo website." };
+export const metadata: Metadata = pageMetadata({
+  title: "Licenses",
+  description: "Trademarks, content ownership and the open-source software used by the Vendo website.",
+  path: "/licenses/",
+  keywords: [],
+});
 
 const software = [
   { name: "Next.js", license: "MIT", url: "https://github.com/vercel/next.js" },
@@ -77,5 +84,10 @@ const sections: LegalSection[] = [
 ];
 
 export default function LicensesPage() {
-  return <LegalPage eyebrow="Legal" title="Licenses" lead="Trademarks, content ownership and the open-source software behind this site." sections={sections} />;
+  return (
+    <>
+      <JsonLd data={breadcrumbSchema([{ name: "Licenses", path: "/licenses/" }])} />
+      <LegalPage eyebrow="Legal" title="Licenses" lead="Trademarks, content ownership and the open-source software behind this site." sections={sections} />
+    </>
+  );
 }

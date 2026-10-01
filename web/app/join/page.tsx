@@ -4,11 +4,17 @@ import { ArrowRight, BatteryCharging, Bike, Briefcase, CheckCircle2, Coins, Fuel
 import { JoinForm } from "@/components/JoinForm";
 import { PageHero } from "@/components/PageHero";
 import { Art } from "@/components/Art";
+import { JsonLd } from "@/components/JsonLd";
+import { FaqSection } from "@/components/FaqSection";
+import { joinFaqs } from "@/lib/faq";
+import { breadcrumbSchema, pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Join Us",
-  description: "Ride with Vendo, list your restaurant or shop, or own a Vendo commercial motorcycle and earn daily payments.",
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Become a Dispatch Rider, Vendor or Bike Owner",
+  description: "Become a Vendo dispatch rider, sell your food or goods on Vendo, or own a fuel or electric delivery motorcycle and earn a fixed daily payment.",
+  path: "/join/",
+  keywords: ["dispatch rider jobs", "become a delivery rider", "sell food online Nigeria", "motorcycle investment Nigeria", "Spiro Ekon 450", "bike investment daily payment"],
+});
 
 const riderPerks = [
   "Go online when it suits you — you choose your hours",
@@ -36,6 +42,7 @@ const investSteps = [
 export default function JoinPage() {
   return (
     <>
+      <JsonLd data={breadcrumbSchema([{ name: "Join Us", path: "/join/" }])} />
       <PageHero
         eyebrow="Join Us"
         title={
@@ -208,6 +215,8 @@ export default function JoinPage() {
           </div>
         </div>
       </section>
+
+      <FaqSection eyebrow="Good to know" title="Riders, Vendors & Bike Owners: FAQ" faqs={joinFaqs} />
     </>
   );
 }

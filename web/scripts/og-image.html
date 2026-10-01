@@ -1,0 +1,37 @@
+<!doctype html>
+<!-- Source for public/og/vendo-og.jpg (1200x630 social preview).
+     Re-render at 1200x630 with any headless browser, e.g.
+       chrome --headless --window-size=1200,630 --screenshot=og.png scripts/og-image.html
+     then save it as a JPEG under ~300 KB (WhatsApp skips larger preview images). -->
+<html>
+<head>
+<meta charset="utf-8">
+<!-- Outfit (SIL OFL 1.1), bundled so rendering works offline -->
+<style>@font-face { font-family: Outfit; src: url("fonts/outfit-latin.woff2") format("woff2"); font-weight: 100 900; }</style>
+<style>
+  html, body { margin: 0; width: 1200px; height: 630px; overflow: hidden; }
+  body { font-family: Outfit, sans-serif; background: #fff; position: relative; color: #0a1633; }
+  .scene { position: absolute; right: -250px; top: -40px; width: 1260px; }
+  .wash { position: absolute; inset: 0; background: linear-gradient(90deg, #fff 0%, #fff 40%, rgba(255,255,255,.75) 52%, rgba(255,255,255,0) 66%); }
+  .copy { position: absolute; left: 64px; top: 64px; width: 600px; }
+  .logo { height: 52px; }
+  h1 { font-size: 76px; line-height: .98; letter-spacing: -0.035em; margin: 40px 0 22px; font-weight: 700; }
+  h1 span { color: #0064ff; display: block; }
+  p { font-size: 26px; color: #4b5670; margin: 0; line-height: 1.35; }
+  .cities { position: absolute; left: 64px; bottom: 56px; display: flex; gap: 10px; }
+  .cities b { font-weight: 500; font-size: 20px; padding: 8px 18px; border-radius: 999px; background: #eef4ff; color: #0052d6; }
+  .url { position: absolute; right: 48px; bottom: 44px; font-size: 22px; font-weight: 500; color: #fff; background: #0064ff; padding: 10px 22px; border-radius: 999px; }
+</style>
+</head>
+<body>
+  <img class="scene" src="../public/illustrations/hero-scene.svg" alt="">
+  <div class="wash"></div>
+  <div class="copy">
+    <img class="logo" src="../public/brand/logo-blue.png" alt="Vendo">
+    <h1>Food &amp; parcels,<span>delivered fast.</span></h1>
+    <p>Food delivery and same-day bike dispatch across Nigeria.</p>
+  </div>
+  <div class="cities"><b>Abuja</b><b>Kaduna</b><b>Kano</b><b>Lagos</b></div>
+  <div class="url">vendoltd.com</div>
+</body>
+</html>

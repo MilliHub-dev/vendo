@@ -25,6 +25,10 @@ import { PhoneMockup } from "@/components/PhoneMockup";
 import { StoreBadges } from "@/components/StoreBadges";
 import { site, whatsappLink } from "@/lib/site";
 import { Art } from "@/components/Art";
+import { FaqSection } from "@/components/FaqSection";
+import { JsonLd } from "@/components/JsonLd";
+import { homeFaqs } from "@/lib/faq";
+import { servicesSchema } from "@/lib/seo";
 
 const services = [
   { img: "service-food", icon: UtensilsCrossed, title: "Food Court", text: "Order from restaurants, fast food spots, drinks and groceries near you." },
@@ -315,8 +319,10 @@ export default function Home() {
         </div>
       </section>
 
-      <div className="section-tight" />
+      <FaqSection eyebrow="Questions" title="Delivery Questions, Answered." faqs={homeFaqs} />
+
       <CtaBanner />
+      <JsonLd data={servicesSchema()} />
     </>
   );
 }

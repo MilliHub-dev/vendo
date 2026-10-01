@@ -4,16 +4,21 @@ import { ContactForm } from "@/components/ContactForm";
 import { PageHero } from "@/components/PageHero";
 import { FacebookIcon, InstagramIcon, TikTokIcon, WhatsAppIcon } from "@/components/BrandIcons";
 import { site, telLink, whatsappLink } from "@/lib/site";
+import { JsonLd } from "@/components/JsonLd";
+import { breadcrumbSchema, pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Contact",
-  description: `Reach Vendo on WhatsApp, phone or email, or visit us at ${site.address}.`,
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Contact Us — WhatsApp, Phone & Kaduna Office",
+  description: "Book a delivery or get support on WhatsApp (08144461726), call 08140454988, email Vendoltdnig@gmail.com, or visit No. 15 Kawo Road, Kaduna.",
+  path: "/contact/",
+  keywords: ["Vendo contact", "Vendo WhatsApp", "dispatch rider Kaduna phone number", "Kawo Road Kaduna"],
+});
 
 export default function ContactPage() {
   const mapQuery = encodeURIComponent(site.address);
   return (
     <>
+      <JsonLd data={breadcrumbSchema([{ name: "Contact", path: "/contact/" }])} />
       <PageHero
         eyebrow="Contact"
         title={

@@ -3,11 +3,15 @@ import { ArrowRight, Bike, Code2, Headphones, MapPin, Megaphone, Rocket, Store, 
 import { CtaBanner } from "@/components/CtaBanner";
 import { PageHero } from "@/components/PageHero";
 import { site } from "@/lib/site";
+import { JsonLd } from "@/components/JsonLd";
+import { breadcrumbSchema, pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Careers",
-  description: "Help build the fastest, most trusted delivery platform in West Africa. See the teams Vendo hires for.",
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Careers — Jobs in Delivery & Logistics",
+  description: "Join Vendo’s operations, rider success, vendor partnerships, support, engineering and growth teams in Kaduna and across Abuja, Kano and Lagos.",
+  path: "/careers/",
+  keywords: ["Vendo careers", "logistics jobs Kaduna", "delivery company jobs Nigeria"],
+});
 
 // Teams we hire for. Add specific openings here as they're approved.
 const teams = [
@@ -29,6 +33,7 @@ export default function CareersPage() {
   const mail = (team: string) => `mailto:${site.email}?subject=${encodeURIComponent(`Application — ${team}`)}`;
   return (
     <>
+      <JsonLd data={breadcrumbSchema([{ name: "Careers", path: "/careers/" }])} />
       <PageHero
         eyebrow="Careers"
         title={

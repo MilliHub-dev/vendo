@@ -4,11 +4,15 @@ import { PhoneMockup } from "@/components/PhoneMockup";
 import { StoreBadges } from "@/components/StoreBadges";
 import { WhatsAppIcon } from "@/components/BrandIcons";
 import { whatsappLink } from "@/lib/site";
+import { JsonLd } from "@/components/JsonLd";
+import { breadcrumbSchema, pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = {
-  title: "Download",
-  description: "The Vendo and Vendo Rider apps are coming soon to iOS and Android. Book on WhatsApp today.",
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Download the App — Food Delivery & Dispatch",
+  description: "The Vendo customer app and Vendo Rider app are coming soon to iPhone and Android. Order food, send packages and track deliveries live. Book on WhatsApp today.",
+  path: "/download/",
+  keywords: ["Vendo app", "delivery app Nigeria", "dispatch app", "Vendo Rider app"],
+});
 
 const features = [
   { icon: MapPinned, title: "Live tracking", text: "Watch your rider move on the map in real time." },
@@ -21,6 +25,7 @@ const features = [
 export default function DownloadPage() {
   return (
     <>
+      <JsonLd data={breadcrumbSchema([{ name: "Download", path: "/download/" }])} />
       <section className="page-hero">
         <div className="container page-hero__grid">
           <div>

@@ -1,8 +1,15 @@
 import type { Metadata } from "next";
 import { LegalPage, type LegalSection } from "@/components/LegalPage";
 import { site } from "@/lib/site";
+import { JsonLd } from "@/components/JsonLd";
+import { breadcrumbSchema, pageMetadata } from "@/lib/seo";
 
-export const metadata: Metadata = { title: "Privacy Policy", description: "How Vendo collects, uses and protects your personal data." };
+export const metadata: Metadata = pageMetadata({
+  title: "Privacy Policy",
+  description: "How Vendo collects, uses and protects your personal data under the Nigeria Data Protection Act 2023.",
+  path: "/privacy/",
+  keywords: [],
+});
 
 const sections: LegalSection[] = [
   {
@@ -132,5 +139,10 @@ const sections: LegalSection[] = [
 ];
 
 export default function PrivacyPage() {
-  return <LegalPage eyebrow="Legal" title="Privacy Policy" lead="How Vendo collects, uses and protects your personal data." sections={sections} />;
+  return (
+    <>
+      <JsonLd data={breadcrumbSchema([{ name: "Privacy Policy", path: "/privacy/" }])} />
+      <LegalPage eyebrow="Legal" title="Privacy Policy" lead="How Vendo collects, uses and protects your personal data." sections={sections} />
+    </>
+  );
 }

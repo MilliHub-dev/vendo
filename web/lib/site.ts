@@ -1,12 +1,17 @@
 // Single place for company details used across the site.
 // Contact details come from the Vendo "Book us Now" flyer; verify social URLs before launch.
 
+// Production domain. Canonical URLs, the sitemap, robots.txt, llms.txt and social
+// previews are built from it. NEXT_PUBLIC_SITE_URL overrides it (e.g. for a staging build).
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://vendoltd.com").replace(/\/$/, "");
+
 export const site = {
+  url: SITE_URL,
   name: "Vendo",
   legalName: "Vendo Limited",
   tagline: "Fast, Reliable Delivery Services",
   description:
-    "Vendo delivers food from local vendors and sends packages by bike across Abuja, Kaduna, Kano and Lagos — tracked live and confirmed with a one-time code.",
+    "Vendo is a Nigerian delivery company offering food delivery from local vendors and same-day motorcycle dispatch for parcels and documents in Abuja, Kaduna, Kano and Lagos. Book on WhatsApp today — the Vendo app is coming soon.",
   email: "Vendoltdnig@gmail.com",
   phones: ["08144461726", "08140454988"],
   whatsapp: "2348144461726", // international format, no "+"

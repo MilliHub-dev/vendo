@@ -28,6 +28,9 @@ const SELECTOR = [
   ".tier",
   ".legal__toc",
   ".prose > section",
+  ".faq__intro",
+  ".faq__item",
+  ".facts",
 ].join(",");
 
 /**
