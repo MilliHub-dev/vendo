@@ -1,0 +1,53 @@
+{
+  "name": "@vendo/server",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "node --watch --import tsx --env-file-if-exists=.env src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node --env-file-if-exists=.env dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "node --import tsx --test tests/*.test.ts",
+    "db:migrate": "node --import tsx --env-file-if-exists=.env scripts/migrate.ts",
+    "openapi": "node --import tsx scripts/openapi.ts",
+    "orders:process": "node --import tsx --env-file-if-exists=.env scripts/process-orders.ts",
+    "payments:process": "node --import tsx --env-file-if-exists=.env scripts/process-payments.ts",
+    "matching:process": "node --import tsx --env-file-if-exists=.env scripts/process-matching.ts",
+    "matching:work": "node --import tsx --env-file-if-exists=.env scripts/process-matching.ts --watch",
+    "notifications:process": "node --import tsx --env-file-if-exists=.env scripts/process-notifications.ts",
+    "notifications:work": "node --import tsx --env-file-if-exists=.env scripts/process-notifications.ts --watch",
+    "worker:dev": "node --import tsx --env-file-if-exists=.env src/worker.ts",
+    "worker": "node --env-file-if-exists=.env dist/worker.js",
+    "db:backup": "node --import tsx --env-file-if-exists=.env scripts/backup.ts",
+    "db:restore": "node --import tsx --env-file-if-exists=.env scripts/restore.ts",
+    "storage:setup": "node --import tsx --env-file-if-exists=.env scripts/setup-storage.ts"
+  },
+  "dependencies": {
+    "@fastify/cors": "^11.3.0",
+    "@fastify/helmet": "^13.1.1",
+    "@fastify/rate-limit": "^11.2.0",
+    "@fastify/swagger": "^9.9.1",
+    "@supabase/supabase-js": "^2.117.2",
+    "fastify": "^5.12.5",
+    "fastify-type-provider-zod": "^7.0.0",
+    "ioredis": "^6.0.0",
+    "pg": "^8.23.1",
+    "standardwebhooks": "^1.1.1",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^26.6.4",
+    "@types/pg": "^8.23.1",
+    "eslint": "^10.12.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.71.0"
+  }
+}

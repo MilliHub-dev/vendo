@@ -28,7 +28,7 @@ The PRD was written around Firebase. We decided: **Supabase (Postgres) is the ma
 |---|---|---|
 | Database | Postgres on Railway | **Supabase Postgres + PostGIS** |
 | Real-time (GPS, order status) | Firestore `onSnapshot` | **Supabase Realtime** (Broadcast for GPS, Postgres Changes for order status) |
-| Auth | Firebase Auth | **Supabase Auth** (phone OTP, SMS sent via Termii through a Send-SMS hook) |
+| Auth | Firebase Auth | **Supabase Auth** (phone OTP, SMS sent via Brevo through a Send-SMS hook) |
 | File storage | Firebase Storage | **Supabase Storage** (private buckets) |
 | Push | FCM | FCM (unchanged) |
 | Cache / geo / queues | Redis | Redis (unchanged) — Railway or Upstash |
@@ -40,7 +40,7 @@ The PRD was written around Firebase. We decided: **Supabase (Postgres) is the ma
 2. **Vendor payout formula.** PRD says `order total − delivery fee − commission`. Commission should apply to the **food subtotal**, not the total. Proposal: `vendor_payout = subtotal − (subtotal × commission_rate)`. Delivery fee goes to rider + platform. **Confirm with finance.**
 3. **OTP on food orders.** PRD requires OTP for dispatch only. Proposal: build it generic, enable per order type via config (`otp_required_food`, default `false`).
 4. **Vendor payouts.** No mechanism defined (weekly bank transfer via Paystack Transfers?). Proposal: add a `vendor_wallets` ledger in Phase 3.
-5. **Nigerian SMS via Supabase Auth.** Not a built-in provider. Use the **Send SMS Hook** to call Termii/Sendchamp. Spike this in week 1.
+5. **Nigerian SMS via Supabase Auth.** Not a built-in provider. Use the **Send SMS Hook** to call Brevo. Spike this in week 1.
 
 ---
 
@@ -54,7 +54,7 @@ The PRD was written around Firebase. We decided: **Supabase (Postgres) is the ma
         │               │      ├─► Redis (rider geo-index, queues via BullMQ, rate limits)
         │               │      ├─► Paystack (top-ups, transfers) ◄── webhooks
         │               │      ├─► FCM (push)
-        └── Realtime ───┘      ├─► Termii/Sendchamp (SMS)
+        └── Realtime ───┘      ├─► Brevo (SMS + transactional email)
       (subscribe only)         └─► WhatsApp (Twilio / 360dialog)
 ```
 
@@ -123,8 +123,10 @@ GOOGLE_MAPS_API_KEY_ANDROID=     # restricted by package + SHA-1
 GOOGLE_MAPS_API_KEY_IOS=         # restricted by bundle ID
 
 # SMS / WhatsApp
-TERMII_API_KEY=
-TERMII_SENDER_ID=
+BREVO_API_KEY=
+BREVO_SMS_SENDER=
+BREVO_EMAIL_SENDER=
+BREVO_EMAIL_SENDER_NAME=Vendo
 WHATSAPP_PROVIDER=twilio|360dialog
 WHATSAPP_API_KEY=
 
@@ -417,7 +419,7 @@ BullMQ repeatable job every minute picks `orders where status='scheduled' and sc
 - WhatsApp (opt-in) for order confirmation; failures must never block order flow.
 
 ### 8.8 Auth
-- Customer & rider: Supabase phone OTP. Configure the **Send SMS Hook** → API → Termii/Sendchamp. Add WhatsApp OTP as fallback (PRD risk register).
+- Customer & rider: Supabase phone OTP. Configure the **Send SMS Hook** → API → Brevo. Add WhatsApp OTP as fallback (PRD risk register).
 - API validates the Supabase JWT on every request; role comes from `profiles.role`.
 - Admin: email login restricted to `ADMIN_ALLOWED_EMAIL_DOMAINS`, with role-based permissions (`super_admin`, `ops`, `finance`, `support`). Finance-only actions: wallet adjustments, withdrawal approvals.
 
@@ -503,7 +505,7 @@ Publish an **OpenAPI** spec (generate from Zod) so `packages/api-client` stays t
 ### Phase 0 — Foundations & spikes (week 1–2)
 - [ ] Monorepo, CI (lint, typecheck, test), EAS + Railway + Supabase envs (dev/staging/prod)
 - [ ] Migrations for core schema + RLS baseline
-- [ ] **Spike:** Supabase phone OTP via Send-SMS hook → Termii
+- [ ] **Spike:** Supabase phone OTP via Send-SMS hook → Brevo
 - [ ] **Spike:** Android background location on real low-end devices
 - [ ] **Spike:** Broadcast latency with 50 simulated riders
 - [ ] Decide open questions in §2

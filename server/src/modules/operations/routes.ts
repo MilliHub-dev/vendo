@@ -1,0 +1,46 @@
+import type { FastifyInstance, FastifyRequest } from 'fastify';
+import type { ZodTypeProvider } from 'fastify-type-provider-zod';
+import { z } from 'zod';
+import { authenticate } from '../auth/routes.js';
+import type { AuthGateway } from '../auth/schema.js';
+import type { ProfileService } from '../users/service.js';
+import { ApiError, errorResponses } from '../../lib/errors.js';
+import { anyOrderSchema } from '../orders/schema.js';
+import { menuSchema, menuInputSchema } from '../food/schema.js';
+import { page, idParams } from '../extras/schema.js';
+import { listQuery, cityInput, adminCitySchema, documentInput, documentSchema, tierInput, tierSchema, membershipInput, bannerInput, bannerSchema, reportQuery, reportRow, riderListSchema, auditSchema, healthSchema, placementSchema, type OperationsRepository } from './schema.js';
+export function registerOperationsRoutes(app: FastifyInstance, auth: AuthGateway, profiles: ProfileService, repo: OperationsRepository) {
+    const api = app.withTypeProvider<ZodTypeProvider>(), shared = { tags: ['Operations'], security: [{ bearerAuth: [] }] }, ok = z.object({ ok: z.literal(true) }), reason = z.string().trim().min(10).max(1000);
+    const user = async (r: FastifyRequest, admin = false) => { const id = await authenticate(r, auth), p = await profiles.get(id); if (admin && p.role !== 'admin')
+        throw new ApiError(403, 'FORBIDDEN', 'Administrator access required.'); return id.id; };
+    api.get('/v1/admin/orders', { schema: { ...shared, querystring: listQuery, response: { 200: z.array(anyOrderSchema), ...errorResponses } } }, async (r) => repo.adminOrders(await user(r, true), r.query));
+    api.get('/v1/admin/orders/:id', { schema: { ...shared, params: idParams, response: { 200: anyOrderSchema, ...errorResponses } } }, async (r) => repo.adminOrder(await user(r, true), r.params.id));
+    api.post('/v1/admin/orders/:id/reassign', { schema: { ...shared, params: idParams, body: z.strictObject({ rider_id: z.uuid(), reason }), response: { 200: anyOrderSchema, ...errorResponses } } }, async (r) => repo.reassign(await user(r, true), r.params.id, r.body.rider_id, r.body.reason));
+    api.post('/v1/admin/orders/:id/cancel', { schema: { ...shared, params: idParams, body: z.strictObject({ reason }), response: { 200: anyOrderSchema, ...errorResponses } } }, async (r) => repo.cancel(await user(r, true), r.params.id, r.body.reason));
+    api.post('/v1/admin/orders/:id/custody-resolution', { schema: { ...shared, params: idParams, body: z.strictObject({ outcome: z.enum(['delivered', 'cancelled']), reason: z.string().trim().min(20).max(1000), custody_confirmed: z.literal(true) }), response: { 200: anyOrderSchema, ...errorResponses } } }, async (r) => repo.custody(await user(r, true), r.params.id, r.body.outcome, r.body.reason));
+    api.get('/v1/admin/cities', { schema: { ...shared, response: { 200: z.array(adminCitySchema), ...errorResponses } } }, async (r) => repo.cities(await user(r, true)));
+    api.put('/v1/admin/cities/:id/pricing', { schema: { ...shared, params: idParams, body: cityInput, response: { 200: adminCitySchema, ...errorResponses } } }, async (r) => repo.saveCity(await user(r, true), r.params.id, r.body));
+    api.get('/v1/admin/riders', { schema: { ...shared, querystring: page.extend({ city_id: z.uuid().optional() }), response: { 200: z.array(riderListSchema), ...errorResponses } } }, async (r) => repo.riders(await user(r, true), r.query.city_id, r.query.limit, r.query.offset));
+    api.get('/v1/admin/audits', { schema: { ...shared, querystring: page, response: { 200: z.array(auditSchema), ...errorResponses } } }, async (r) => repo.audits(await user(r, true), r.query.limit, r.query.offset));
+    api.get('/v1/admin/operations/health', { schema: { ...shared, response: { 200: healthSchema, ...errorResponses } } }, async (r) => repo.health(await user(r, true)));
+    api.get('/v1/admin/reports/orders', { schema: { ...shared, querystring: reportQuery, response: { 200: z.array(reportRow), ...errorResponses } } }, async (r) => repo.report(await user(r, true), r.query));
+    api.get('/v1/vendor/vendors/:id/orders', { schema: { ...shared, params: idParams, querystring: page, response: { 200: z.array(anyOrderSchema), ...errorResponses } } }, async (r) => repo.vendorOrders(await user(r), r.params.id, r.query.limit, r.query.offset));
+    api.get('/v1/vendor/vendors/:id/menu', { schema: { ...shared, params: idParams, response: { 200: z.array(menuSchema), ...errorResponses } } }, async (r) => repo.vendorMenu(await user(r), r.params.id));
+    api.post('/v1/vendor/vendors/:id/menu', { schema: { ...shared, params: idParams, body: menuInputSchema, response: { 201: menuSchema, ...errorResponses } } }, async (r, p) => p.code(201).send(await repo.saveMenu(await user(r), r.params.id, undefined, r.body)));
+    api.put('/v1/vendor/vendors/:id/menu/:itemId', { schema: { ...shared, params: z.object({ id: z.uuid(), itemId: z.uuid() }), body: menuInputSchema, response: { 200: menuSchema, ...errorResponses } } }, async (r) => repo.saveMenu(await user(r), r.params.id, r.params.itemId, r.body));
+    api.put('/v1/vendor/vendors/:id/availability', { schema: { ...shared, params: idParams, body: z.strictObject({ is_open: z.boolean() }), response: { 200: ok, ...errorResponses } } }, async (r) => { await repo.vendorOpen(await user(r), r.params.id, r.body.is_open); return { ok: true as const }; });
+    api.get('/v1/riders/me/documents', { schema: { ...shared, response: { 200: z.array(documentSchema), ...errorResponses } } }, async (r) => { const id = await user(r); return repo.documents(id, id); });
+    api.post('/v1/riders/me/documents', { bodyLimit: 3 * 1024 * 1024, config: { rateLimit: { max: 8, timeWindow: '1 hour' } }, schema: { ...shared, body: documentInput, response: { 201: documentSchema, ...errorResponses } } }, async (r, p) => p.code(201).send(await repo.upload(await user(r), r.body)));
+    api.get('/v1/admin/riders/:id/documents', { schema: { ...shared, params: idParams, response: { 200: z.array(documentSchema), ...errorResponses } } }, async (r) => repo.documents(await user(r, true), r.params.id));
+    api.get('/v1/admin/rider-documents/:id/content', { schema: { ...shared, params: idParams, response: { 200: z.object({ mime: z.string(), data_base64: z.string() }), ...errorResponses } } }, async (r) => repo.document(await user(r, true), r.params.id));
+    api.post('/v1/admin/rider-documents/:id/review', { schema: { ...shared, params: idParams, body: z.strictObject({ status: z.enum(['approved', 'rejected']), note: reason }), response: { 200: ok, ...errorResponses } } }, async (r) => { await repo.reviewDocument(await user(r, true), r.params.id, r.body.status, r.body.note); return { ok: true as const }; });
+    api.get('/v1/admin/membership-tiers', { schema: { ...shared, response: { 200: z.array(tierSchema), ...errorResponses } } }, async (r) => repo.tiers(await user(r, true)));
+    api.post('/v1/admin/membership-tiers', { schema: { ...shared, body: tierInput, response: { 201: tierSchema, ...errorResponses } } }, async (r, p) => p.code(201).send(await repo.saveTier(await user(r, true), r.body)));
+    api.put('/v1/admin/membership-tiers/:id', { schema: { ...shared, params: idParams, body: tierInput, response: { 200: tierSchema, ...errorResponses } } }, async (r) => repo.saveTier(await user(r, true), r.body, r.params.id));
+    api.put('/v1/admin/vendors/:id/membership', { schema: { ...shared, params: idParams, body: membershipInput, response: { 200: ok, ...errorResponses } } }, async (r) => { await repo.membership(await user(r, true), r.params.id, r.body); return { ok: true as const }; });
+    api.post('/v1/admin/banners', { schema: { ...shared, body: bannerInput, response: { 201: bannerSchema, ...errorResponses } } }, async (r, p) => p.code(201).send(await repo.saveBanner(await user(r, true), r.body)));
+    api.put('/v1/admin/banners/:id', { schema: { ...shared, params: idParams, body: bannerInput, response: { 200: bannerSchema, ...errorResponses } } }, async (r) => repo.saveBanner(await user(r, true), r.body, r.params.id));
+    const cityQuery = z.strictObject({ city_id: z.uuid() });
+    api.get('/v1/growth/banners', { schema: { tags: ['Growth'], querystring: cityQuery, response: { 200: z.array(bannerSchema), ...errorResponses } } }, async (r) => repo.banners(r.query.city_id));
+    api.get('/v1/growth/placements', { schema: { tags: ['Growth'], querystring: cityQuery, response: { 200: z.array(placementSchema), ...errorResponses } } }, async (r) => repo.placements(r.query.city_id));
+}

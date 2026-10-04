@@ -1,0 +1,34 @@
+import { z } from 'zod';
+import { pointSchema, orderStatusSchema, routeGeometrySchema } from '../food/schema.js';
+import { packageSchema } from '../dispatch/schema.js';
+import type { AnyOrder } from '../orders/schema.js';
+export const riderInputSchema = z.strictObject({city_id:z.uuid(),vehicle_type:z.enum(['motorcycle','bicycle','car']),plate_number:z.string().trim().toUpperCase().min(2).max(30).regex(/^[A-Z0-9 -]+$/)});
+export const riderSchema = riderInputSchema.extend({profile_id:z.uuid(),approval:z.enum(['pending','approved','rejected','suspended']),online:z.boolean(),presence:z.enum(['offline','online','on_trip']),approval_note:z.string().nullable(),created_at:z.string(),updated_at:z.string()});
+export type Rider = z.infer<typeof riderSchema>;
+export type RiderInput = z.infer<typeof riderInputSchema>;
+export const matchingPolicySchema = z.strictObject({initial_radius_m:z.number().int().min(100).max(50000),max_radius_m:z.number().int().min(100).max(100000),radius_step_m:z.number().int().min(100).max(50000),expansion_seconds:z.number().int().min(5).max(600),offer_seconds:z.number().int().min(5).max(120),search_seconds:z.number().int().min(30).max(3600),location_max_age_seconds:z.number().int().min(15).max(300),max_accuracy_m:z.number().int().min(5).max(500)}).refine(p=>p.initial_radius_m<=p.max_radius_m&&p.search_seconds>=p.offer_seconds,'Invalid matching windows.');
+export type MatchingPolicy = z.infer<typeof matchingPolicySchema>;
+export const locationInputSchema = pointSchema.extend({accuracy_m:z.number().min(0).max(500),heading:z.number().min(0).lt(360).nullable().default(null),speed_mps:z.number().min(0).max(80).nullable().default(null),captured_at:z.iso.datetime({offset:true})}).strict();
+export type LocationInput = z.infer<typeof locationInputSchema>;
+export const locationSchema = locationInputSchema.extend({received_at:z.string()}).strip();
+export const offerSchema = z.object({id:z.uuid(),order_id:z.uuid(),type:z.enum(['food','dispatch']),status:z.enum(['pending','accepted','rejected','expired','cancelled']),distance_m:z.number().int(),package:packageSchema.nullable(),expires_at:z.string(),pickup:pointSchema.extend({address:z.string()}).strip(),dropoff:pointSchema.extend({address:z.string()}).strip()});
+export type Offer = z.infer<typeof offerSchema>;
+export const searchSchema = z.object({state:z.enum(['searching','assigned','no_rider','closed']),radius_m:z.number(),started_at:z.string(),deadline_at:z.string(),reason:z.string().nullable()});
+export const trackingSchema = z.object({order_id:z.uuid(),status:orderStatusSchema,matching:searchSchema.nullable(),rider:z.object({id:z.uuid(),name:z.string(),vehicle_type:z.string(),plate_number:z.string(),phone:z.string().nullable(),call_url:z.string().nullable(),whatsapp_url:z.url().nullable()}).nullable(),location:locationSchema.nullable(),location_stale:z.boolean(),target:z.object({stage:z.enum(['pickup','dropoff']),point:pointSchema.strip()}).nullable(),eta:z.object({target:z.enum(['pickup','dropoff']),distance_m:z.number(),duration_s:z.number(),computed_at:z.string(),geometry:routeGeometrySchema.optional()}).nullable()});
+export type Tracking = z.infer<typeof trackingSchema>;
+export interface MatchingRepository {
+  register(userId:string,input:RiderInput):Promise<Rider>;
+  rider(userId:string):Promise<Rider|null>;
+  review(actorId:string,riderId:string,status:'approved'|'rejected'|'suspended',note:string):Promise<Rider>;
+  presence(userId:string,online:boolean):Promise<Rider>;
+  locate(userId:string,input:LocationInput):Promise<z.infer<typeof locationSchema>>;
+  currentOffer(userId:string):Promise<Offer|null>;
+  respond(userId:string,offerId:string,action:'accept'|'reject'):Promise<Offer>;
+  job(userId:string):Promise<AnyOrder|null>;
+  savePolicy(actorId:string,cityId:string,input:MatchingPolicy):Promise<MatchingPolicy>;
+  tracking(userId:string,orderId:string):Promise<Tracking>;
+  retry(userId:string,orderId:string):Promise<void>;
+  cancelSearch(userId:string,orderId:string):Promise<AnyOrder>;
+  queue(actorId:string,cityId:string,limit:number,offset:number):Promise<{order_id:string;reason:string|null;started_at:string}[]>;
+  process(limit:number):Promise<{offered:number;expired:number;no_rider:number;offline:number}>;
+}

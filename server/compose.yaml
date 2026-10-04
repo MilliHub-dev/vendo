@@ -1,0 +1,47 @@
+x-runtime: &runtime
+  image: vendo-server:local
+  build: .
+  env_file: ${VENDO_ENV_FILE:-.env}
+  init: true
+  restart: unless-stopped
+  stop_grace_period: 60s
+  read_only: true
+  tmpfs:
+    - /tmp
+  security_opt:
+    - no-new-privileges:true
+services:
+  api:
+    <<: *runtime
+    ports:
+      - "127.0.0.1:4000:4000"
+  matching:
+    <<: *runtime
+    command: ["node", "dist/worker.js"]
+    environment:
+      WORKER_KIND: matching
+    healthcheck: {disable: true}
+  orders:
+    <<: *runtime
+    command: ["node", "dist/worker.js"]
+    environment:
+      WORKER_KIND: orders
+    healthcheck: {disable: true}
+  payments:
+    <<: *runtime
+    command: ["node", "dist/worker.js"]
+    environment:
+      WORKER_KIND: payments
+    healthcheck: {disable: true}
+  notifications:
+    <<: *runtime
+    command: ["node", "dist/worker.js"]
+    environment:
+      WORKER_KIND: notifications
+    healthcheck: {disable: true}
+  finance:
+    <<: *runtime
+    command: ["node", "dist/worker.js"]
+    environment:
+      WORKER_KIND: finance
+    healthcheck: {disable: true}
