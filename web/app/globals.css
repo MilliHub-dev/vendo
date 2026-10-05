@@ -2273,7 +2273,7 @@ a.contact-card:hover {
 
 .bike-card__numbers {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(0, 1fr));
+  grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
 

@@ -150,7 +150,8 @@ export default function JoinPage() {
               <h3>Fuel Motorcycle</h3>
               <p className="bike-card__model">QLINK XP / Champion 200</p>
               <div className="bike-card__numbers">
-                <div><small>Daily payment</small><b>₦6,000</b></div>
+                <div><small>Investment</small><b>Contact us</b></div>
+                <div><small>Daily payment</small><b>Contact us</b></div>
               </div>
               <ul className="spec-list">
                 <li>200cc engine</li>
@@ -166,7 +167,8 @@ export default function JoinPage() {
               <h3>Electric Motorcycle</h3>
               <p className="bike-card__model">Spiro Ekon 450</p>
               <div className="bike-card__numbers">
-                <div><small>Daily payment</small><b>₦8,000</b></div>
+                <div><small>Investment</small><b>Contact us</b></div>
+                <div><small>Daily payment</small><b>Contact us</b></div>
               </div>
               <ul className="spec-list">
                 <li>4.5 kW rated / 9 kW peak</li>
@@ -179,8 +181,8 @@ export default function JoinPage() {
             </div>
           </div>
           <p className="fine-print">
-            Every unit includes a helmet, a Vendo-branded delivery box, fleet deployment and branding. Figures are from Vendo&apos;s current
-            investment brochure; the full terms are set out in your investment agreement — speak with our team before investing.
+            Every unit includes a helmet, a Vendo-branded delivery box, fleet deployment and branding. Contact our team for current
+            prices and daily payment amounts; the full terms are set out in your investment agreement.
           </p>
 
           <div className="two-col mt-48">
