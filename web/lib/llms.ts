@@ -24,7 +24,7 @@ Vendo offers two services — food delivery (Food Court) and same-day motorcycle
 ## Pages
 - [Home](${u("/")}): services, how delivery works, pricing by package size, FAQ
 - [About Vendo](${u("/about/")}): mission, vision, values, cities served
-- [Join Us](${u("/join/")}): become a rider, sell as a vendor, or own a Vendo commercial motorcycle (fuel ₦1,399,000 → ₦6,000/day; electric ₦1,745,000 → ₦8,000/day)
+- [Join Us](${u("/join/")}): become a rider, sell as a vendor, or own a Vendo commercial motorcycle (daily payment: fuel ₦6,000; electric ₦8,000)
 - [Contact](${u("/contact/")}): WhatsApp, phone, email, office address and map
 - [Download](${u("/download/")}): Vendo and Vendo Rider apps (coming soon)
 - [Careers](${u("/careers/")}): teams Vendo hires for

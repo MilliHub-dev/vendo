@@ -150,7 +150,6 @@ export default function JoinPage() {
               <h3>Fuel Motorcycle</h3>
               <p className="bike-card__model">QLINK XP / Champion 200</p>
               <div className="bike-card__numbers">
-                <div><small>Investment</small><b>₦1,399,000</b></div>
                 <div><small>Daily payment</small><b>₦6,000</b></div>
               </div>
               <ul className="spec-list">
@@ -167,7 +166,6 @@ export default function JoinPage() {
               <h3>Electric Motorcycle</h3>
               <p className="bike-card__model">Spiro Ekon 450</p>
               <div className="bike-card__numbers">
-                <div><small>Investment</small><b>₦1,745,000</b></div>
                 <div><small>Daily payment</small><b>₦8,000</b></div>
               </div>
               <ul className="spec-list">

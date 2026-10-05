@@ -56,6 +56,6 @@ export const joinFaqs: Faq[] = [
   },
   {
     q: "What is the Vendo motorcycle ownership programme?",
-    a: "You buy a commercial motorcycle that is deployed in Vendo's delivery fleet and receive a fixed daily payment: a fuel QLINK XP / Champion 200 costs ₦1,399,000 with a ₦6,000 daily payment, and an electric Spiro Ekon 450 costs ₦1,745,000 with an ₦8,000 daily payment. Each bike includes a helmet, a Vendo delivery box and tracking. Full terms are in the investment agreement.",
+    a: "You buy a commercial motorcycle that is deployed in Vendo's delivery fleet and receive a fixed daily payment: ₦6,000 a day for a fuel QLINK XP / Champion 200, or ₦8,000 a day for an electric Spiro Ekon 450. Contact our team for the current purchase price. Each bike includes a helmet, a Vendo delivery box and tracking. Full terms are in the investment agreement.",
   },
 ];
