@@ -12,7 +12,7 @@ cp .env.example .env
 npm run dev
 ```
 
-The default address is `http://127.0.0.1:4000`. Without provider credentials, `/health` and `/openapi.json` work, `/ready` returns 503, and provider-dependent endpoints return a clear 503. There are no fake users, test OTPs or in-memory profile storage in the running API.
+The default address is `http://127.0.0.1:4000`; opening the base URL redirects to interactive Swagger documentation at `/docs/`. Without provider credentials, `/health`, `/docs/` and `/openapi.json` work, `/ready` returns 503, and provider-dependent endpoints return a clear 503. There are no fake users, test OTPs or in-memory profile storage in the running API.
 
 ```sh
 npm run typecheck

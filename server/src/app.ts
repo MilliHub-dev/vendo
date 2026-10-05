@@ -4,6 +4,7 @@ import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import rateLimit from '@fastify/rate-limit';
 import swagger from '@fastify/swagger';
+import swaggerUi from '@fastify/swagger-ui';
 import { jsonSchemaTransform, serializerCompiler, validatorCompiler, hasZodFastifySchemaValidationErrors } from 'fastify-type-provider-zod';
 import type { Redis } from 'ioredis';
 import type { Env } from './config/env.js';
@@ -141,6 +142,8 @@ export async function buildApp(env: Env, dependencies: Dependencies) {
       return document.openapiObject;
     },
   });
+  await app.register(swaggerUi, { routePrefix: '/docs', staticCSP: true, uiConfig: { docExpansion: 'list', deepLinking: true, persistAuthorization: false } });
+  app.get('/', { schema: { hide: true } }, async (_request, reply) => reply.redirect('/docs/'));
   app.get('/health', { schema: { hide: true } }, async () => ({ status: 'ok' }));
   app.get('/ready', { schema: { hide: true } }, async (_request, reply) => {
     let ready = false;

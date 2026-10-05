@@ -79,6 +79,14 @@ test('normalized phone cooldown and verification attempt limits cannot be bypass
 test('health, unavailable providers, request IDs and error redaction', async (t) => {
   const app = await buildApp(env, await createDependencies(env));
   t.after(() => app.close());
+  const root = await app.inject('/');
+  assert.equal(root.statusCode, 302);
+  assert.equal(root.headers.location, '/docs/');
+  const docs = await app.inject('/docs/');
+  assert.equal(docs.statusCode, 200);
+  assert.match(docs.body, /swagger-ui/i);
+  assert.equal((await app.inject('/docs/static/swagger-ui-bundle.js')).statusCode, 200);
+  assert.ok((await app.inject('/docs/json')).json().paths['/v1/me']);
   assert.equal((await app.inject('/health')).statusCode, 200);
   assert.equal((await app.inject('/ready')).statusCode, 503);
   const response = await app.inject({ url: '/v1/me', headers });
