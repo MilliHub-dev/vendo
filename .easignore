@@ -1,0 +1,39 @@
+# What EAS Build uploads. This replaces the .gitignore files for uploads, so the
+# usual ignores are repeated here. Only the two Expo apps are needed.
+
+# everything that isn't an Expo app
+/web
+/vendors
+/admin
+/server
+/.kilo
+/.github
+/*.pdf
+/*.docx
+/*.md
+/*.png
+/*.jpg
+/*.jpeg
+
+# usual ignores
+node_modules/
+.expo/
+dist/
+web-build/
+.git/
+.DS_Store
+*.tsbuildinfo
+.env*.local
+/mobile/ios
+/mobile/android
+/riders/ios
+/riders/android
+
+# not needed to build
+/mobile/reference
+*.jks
+*.p8
+*.p12
+*.key
+*.pem
+*.mobileprovision
