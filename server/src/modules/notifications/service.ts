@@ -1,4 +1,5 @@
 import type { NotificationRepository, NotificationTransports } from './schema.js';
+import { notificationEmail } from '../../emails/templates.js';
 export class NotificationService {
     constructor(private readonly repository: NotificationRepository, private readonly transports: NotificationTransports) { }
     async process(limit = 25, reminderMinutes = 30) {
@@ -28,7 +29,7 @@ export class NotificationService {
                     }
                 }
                 else if (job.channel === 'email')
-                    await this.transports.email!.send({ to: target.destination, subject: target.notification.title, text: target.notification.body });
+                    await this.transports.email!.send({ to: target.destination, ...notificationEmail(target.notification) });
                 else
                     await this.transports[job.channel]!.sendText(target.destination, target.notification.body);
                 await this.repository.finish(job, 'sent');

@@ -5,6 +5,7 @@ import type { EmailSender } from '../../integrations/brevo.js';
 import type { Limits } from '../../integrations/limits.js';
 import { phoneKey } from '../../integrations/limits.js';
 import { ApiError } from '../../lib/errors.js';
+import { verificationEmail } from '../../emails/templates.js';
 import type { AccountRepository, Preferences } from './schema.js';
 
 export class AccountService {
@@ -27,7 +28,7 @@ export class AccountService {
       || !await this.limits.consume(`vendo:email:send:${identity.id}`, 5, 3600)) throw new ApiError(429, 'EMAIL_RATE_LIMITED', 'Please wait before requesting another email.');
     const expiresAt = new Date(Date.now() + 600000);
     if (!await this.repository.issueVerification(identity.id, { id, email: profile.email, hash, expiresAt })) throw new ApiError(409, 'EMAIL_CHANGED', 'Reload your profile and try again.');
-    try { await this.email.send({ to: profile.email, subject: 'Verify your Vendo email', text: `Your Vendo email verification code is ${code}. It expires in 10 minutes. Do not share it with anyone.` }); }
+    try { await this.email.send({ to: profile.email, ...verificationEmail(code) }); }
     catch (error) { await this.repository.discardVerification(identity.id, id); throw error; }
     return { challenge_id: id, expires_at: expiresAt.toISOString(), retry_after_seconds: 60 };
   }

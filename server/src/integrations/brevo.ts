@@ -2,7 +2,7 @@ import { z } from 'zod';
 import { ApiError } from '../lib/errors.js';
 
 export interface SmsSender { send(phone: string, otp: string): Promise<void> }
-export interface EmailMessage { to: string; subject: string; text: string }
+export interface EmailMessage { to: string; subject: string; text: string; html?: string }
 export interface EmailSender { send(message: EmailMessage): Promise<void> }
 
 async function send(path: string, apiKey: string, body: unknown, responseSchema: z.ZodType, code: string, message: string, timeout: number): Promise<void> {
@@ -33,11 +33,11 @@ export function createBrevoSmsSender(apiKey: string, sender: string): SmsSender 
 export function createBrevoEmailSender(apiKey: string, senderEmail: string, senderName: string): EmailSender {
   return {
     async send(message) {
-      const parsed = z.object({ to: z.email(), subject: z.string().min(1).max(255), text: z.string().min(1) }).safeParse(message);
+      const parsed = z.object({ to: z.email(), subject: z.string().min(1).max(255), text: z.string().min(1), html: z.string().min(1).optional() }).safeParse(message);
       if (!parsed.success) throw new ApiError(400, 'INVALID_EMAIL_MESSAGE', 'Invalid email message.');
       await send('smtp/email', apiKey, {
         sender: { email: senderEmail, name: senderName }, to: [{ email: parsed.data.to }],
-        subject: parsed.data.subject, textContent: parsed.data.text,
+        subject: parsed.data.subject, ...(parsed.data.html ? { htmlContent: parsed.data.html } : { textContent: parsed.data.text }),
       }, z.object({ messageId: z.string().min(1) }),
       'EMAIL_UNAVAILABLE', 'Email delivery is temporarily unavailable.', 5000);
     },

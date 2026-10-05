@@ -23,6 +23,9 @@ test('Brevo sends SMS and email with API authentication and provider-specific pa
   assert.deepEqual(calls[1]?.body.sender, { email: 'hello@example.com', name: 'Vendo' });
   assert.deepEqual(calls[1]?.body.to, [{ email: 'customer@example.com' }]);
   assert.equal(calls[1]?.body.textContent, 'Welcome to Vendo.');
+  await createBrevoEmailSender('test-api-key', 'hello@example.com', 'Vendo').send({ to: 'customer@example.com', subject: 'Welcome', text: 'Welcome to Vendo.', html: '<p>Welcome to Vendo.</p>' });
+  assert.equal(calls[2]?.body.htmlContent, '<p>Welcome to Vendo.</p>');
+  assert.equal(calls[2]?.body.textContent, undefined);
 });
 
 test('Brevo failures and malformed success responses fail without leaking provider details', async (t) => {
