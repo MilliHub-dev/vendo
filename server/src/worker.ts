@@ -50,4 +50,4 @@ async function main() {
         await d.close();
     }
 }
-main().catch(() => { console.error('Worker startup failed. Check configuration and dependencies.'); process.exitCode = 1; });
+main().catch((error: unknown) => { console.error(`Worker startup failed. ${error instanceof Error && error.message.startsWith('Invalid configuration:') ? error.message : 'Check configuration and dependencies.'}`); process.exitCode = 1; });

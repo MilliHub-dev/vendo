@@ -40,6 +40,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
-    }
+    },
+    "extra": {
+      "eas": {
+        "projectId": "e5fa753d-2ac8-47c2-9225-7db05144eebe"
+      }
+    },
+    "owner": "motaavendo"
   }
 }

@@ -15,6 +15,8 @@ async function main() {
 
 main().catch((error: unknown) => {
   const code = error instanceof Error && 'code' in error && typeof error.code === 'string' && /^[A-Z_]+$/.test(error.code) ? error.code : 'STARTUP_FAILED';
-  console.error(`Server startup failed (${code}). Check configuration and provider connectivity.`);
+  // Configuration errors list variable names and safe messages only (never values), so they can be logged.
+  const detail = error instanceof Error && error.message.startsWith('Invalid configuration:') ? ` ${error.message}` : '';
+  console.error(`Server startup failed (${code}).${detail || ' Check configuration and provider connectivity.'}`);
   process.exitCode = 1;
 });
