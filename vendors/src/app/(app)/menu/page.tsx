@@ -1,9 +1,9 @@
 "use client";
 
-import { Pencil, Plus, Trash2, UtensilsCrossed } from "lucide-react";
+import { Pencil, Plus, UtensilsCrossed } from "lucide-react";
 import { useState } from "react";
 
-import { useDeleteMenuItem, useMenu, useSaveMenuItem, useSetItemAvailable } from "@/api/queries";
+import { useMenu, useSaveMenuItem, useSetItemAvailable } from "@/api/queries";
 import type { MenuItem } from "@/api/types";
 import { ImagePicker } from "@/components/ImagePicker";
 import { Badge, Button, Confirm, Empty, Input, Modal, Spinner, Switch, Textarea } from "@/components/ui";
@@ -12,10 +12,8 @@ import { formatNaira, nairaToKobo } from "@/lib/money";
 export default function MenuPage() {
   const menu = useMenu();
   const setAvailable = useSetItemAvailable();
-  const remove = useDeleteMenuItem();
   const [filter, setFilter] = useState("All");
   const [editing, setEditing] = useState<MenuItem | "new" | null>(null);
-  const [deleting, setDeleting] = useState<MenuItem | null>(null);
   if (menu.isError) return <p className="note note--danger">{menu.error?.message}</p>;
   if (!menu.data) return <Spinner />;
 
@@ -95,9 +93,6 @@ export default function MenuPage() {
                         <button type="button" className="icon-btn" aria-label={`Edit ${item.name}`} onClick={() => setEditing(item)}>
                           <Pencil />
                         </button>
-                        <button type="button" className="icon-btn" aria-label={`Remove ${item.name} from sale`} onClick={() => setDeleting(item)}>
-                          <Trash2 color="var(--danger)" />
-                        </button>
                       </div>
                     </td>
                   </tr>
@@ -109,17 +104,6 @@ export default function MenuPage() {
       </section>
 
       {editing ? <ItemModal existing={editing === "new" ? undefined : editing} categories={categories} onClose={() => setEditing(null)} /> : null}
-      {deleting ? (
-        <Confirm
-          title={`Remove “${deleting.name}” from sale?`}
-          message="It will become unavailable to customers. You can make it available again later."
-          confirmLabel="Remove from sale"
-          danger
-          loading={remove.isPending}
-          onClose={() => setDeleting(null)}
-          onConfirm={() => remove.mutate(deleting.id, { onSuccess: () => setDeleting(null) })}
-        />
-      ) : null}
     </>
   );
 }

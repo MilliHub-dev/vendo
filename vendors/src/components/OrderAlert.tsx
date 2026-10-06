@@ -71,7 +71,8 @@ function Alert({ order }: { order: Order }) {
             New order
           </div>
           <div className="small muted">
-            {order.code} · for {order.customerName}
+            {order.code}
+            {order.customerName && order.customerName !== "Customer" ? ` · for ${order.customerName}` : ""}
           </div>
         </div>
         <span className={left <= 30 ? "timer timer--urgent" : "timer"} aria-label={`${left} seconds left to answer`}>

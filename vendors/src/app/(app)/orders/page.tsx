@@ -69,7 +69,7 @@ export default function OrdersPage() {
                       <button type="button" className="strong" style={{ background: "none", border: 0, padding: 0, cursor: "pointer" }} aria-label={`Open order ${o.code}`} onClick={() => openOrder(o.id)}>
                         {o.code}
                       </button>
-                      <div className="small muted">{o.customerName}</div>
+                      {o.customerName && o.customerName !== "Customer" ? <div className="small muted">{o.customerName}</div> : null}
                     </td>
                     <td>
                       <div>{o.items.map((i) => `${i.quantity} × ${i.name}`).join(", ")}</div>

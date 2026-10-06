@@ -4,6 +4,9 @@ import { createTransport, type Tokens } from './transport';
 import { useSession } from '../store/session';
 
 import { object, string, number, array, user, store, application, item, order, type Row } from './dto';
+import { bankName, banks as bundledBanks } from '../lib/banks';
+let liveBanks: { code: string; name: string }[] | null = null;
+const nameOfBank = (code: string) => liveBanks?.find(b => b.code === code)?.name ?? bankName(code);
 const request = createTransport(process.env.NEXT_PUBLIC_API_URL ?? 'https://api.vendoltd.com', { get: () => ({token:useSession.getState().token,refreshToken:useSession.getState().refreshToken,accountId:useSession.getState().user?.id ?? null}), save: tokens => useSession.getState().setTokens(tokens), clear: () => useSession.getState().signOut() });
 async function storeId() { const s = useSession.getState().store; if (!s || s.approval !== 'approved') throw new Error('Choose an approved store first.'); return s.id; }
 async function path(suffix = '') { return `/v1/vendor/stores/${await storeId()}${suffix}`; }
@@ -40,7 +43,8 @@ export const api: ApiClient = {
  async setItemAvailable(id,available) { const old=(await this.listMenu()).find(i=>i.id===id);if(!old)throw new Error('Menu item not found.');return this.saveMenuItem({...old,isAvailable:available},id); },
  async deleteMenuItem(id) { await this.setItemAvailable(id,false); },
  async getDashboard() { return object((await portal()).dashboard) as Dashboard; },
- async getPayouts() { const prefix=`/v1/earnings/vendor/${await storeId()}`;const [account,bank,history]=await Promise.all([request(prefix),request(`${prefix}/bank`),all(`${prefix}/withdrawals`)]);const a=object(account),b=bank?object(bank):null;return {balanceKobo:number(a.available_kobo),nextPayoutDate:null,account:b?{bankCode:string(b.bank_code),bankName:`Bank ${string(b.bank_code)}`,accountNumber:string(b.last_four),accountName:string(b.account_name)}:null,history:history.map(h=>({id:string(h.id),amountKobo:number(h.amount_kobo),status:string(h.status),date:string(h.created_at),orders:0}))} as Payouts; },
+ async getPayouts() { const prefix=`/v1/earnings/vendor/${await storeId()}`;const [account,bank,history]=await Promise.all([request(prefix),request(`${prefix}/bank`),all(`${prefix}/withdrawals`)]);const a=object(account),b=bank?object(bank):null;return {balanceKobo:number(a.available_kobo),heldKobo:number(a.held_kobo ?? 0),nextPayoutDate:null,account:b?{bankCode:string(b.bank_code),bankName:nameOfBank(string(b.bank_code)),accountNumber:string(b.last_four),accountName:string(b.account_name)}:null,history:history.map(h=>({id:string(h.id),amountKobo:number(h.amount_kobo),status:string(h.status),date:string(h.created_at),orders:0,note:string(h.review_note)||undefined}))} as Payouts; },
+ async listBanks() { try { const r=object(await request('/v1/payout-banks'));const items=array(r.items).map(v=>{const b=object(v);return {code:string(b.code),name:string(b.name)};});if(items.length)liveBanks=items; } catch { /* the bundled list covers the major banks */ } return liveBanks ?? bundledBanks; },
  async saveBankAccount(account) { await request(`/v1/earnings/vendor/${await storeId()}/bank`,'PUT',{bank_code:account.bankCode,account_number:account.accountNumber});return this.getPayouts(); },
  async requestWithdrawal(amountKobo) { const id=await storeId(),payload=`${id}:${amountKobo}`;if(withdrawalKey?.payload!==payload)withdrawalKey={payload,key:crypto.randomUUID()};await request(`/v1/earnings/vendor/${id}/withdrawals`,'POST',{amount_kobo:amountKobo},true,withdrawalKey.key);withdrawalKey=null; },
  async listReviews() { return array((await portal()).reviews) as Review[]; },

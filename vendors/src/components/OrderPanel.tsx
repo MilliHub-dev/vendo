@@ -60,7 +60,7 @@ function Panel({ order, onClose }: { order: Order; onClose: () => void }) {
     <Modal side title={`Order ${order.code}`} onClose={onClose} footer={footer}>
       <div className="stack-sm">
         <div className="between">
-          <h3>For {order.customerName}</h3>
+          <h3>{order.customerName && order.customerName !== "Customer" ? `For ${order.customerName}` : "Order items"}</h3>
           <Badge tone={statusTone(order)}>{statusLabel[order.status]}</Badge>
         </div>
         <p className="small muted">

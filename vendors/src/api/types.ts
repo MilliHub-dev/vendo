@@ -94,8 +94,8 @@ export type Dashboard = {
 
 export type Bank = { code: string; name: string };
 export type BankAccount = { bankCode: string; bankName: string; accountNumber: string; accountName: string };
-export type Payout = { id: string; amountKobo: Kobo; status: string; date: string; orders: number };
-export type Payouts = { balanceKobo: Kobo; nextPayoutDate: string | null; account: BankAccount | null; history: Payout[] };
+export type Payout = { id: string; amountKobo: Kobo; status: string; date: string; orders: number; note?: string };
+export type Payouts = { balanceKobo: Kobo; /** earned but not yet released (inside the hold period, or under dispute) */ heldKobo?: Kobo; nextPayoutDate: string | null; account: BankAccount | null; history: Payout[] };
 
 export type Review = { id: string; customerName: string; rating: number; comment: string; createdAt: string };
 export type AppNotification = { id: string; title: string; body: string; createdAt: string };

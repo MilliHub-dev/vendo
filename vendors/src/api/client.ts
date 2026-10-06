@@ -54,6 +54,8 @@ export interface ApiClient {
   // business
   getDashboard(): Promise<Dashboard>;
   getPayouts(): Promise<Payouts>;
+  /** Banks a payout account can be held at (Paystack's list through our server; a bundled list of major banks if that isn't available). */
+  listBanks(): Promise<{ code: string; name: string }[]>;
   logout(): Promise<void>;
   requestWithdrawal(amountKobo: number): Promise<void>;
   saveBankAccount(account: Omit<BankAccount, 'bankName'>): Promise<Payouts>;

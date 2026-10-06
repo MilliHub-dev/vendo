@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, BellRing } from "lucide-react";
+import { ArrowRight, BellRing, ClipboardList, ShoppingBag, Star, Wallet } from "lucide-react";
 import Link from "next/link";
 
 import { useDashboard, useMenu, useOrders, useSetOpen, useStore } from "@/api/queries";
@@ -64,23 +64,38 @@ export default function DashboardPage() {
         </Link>
       ) : null}
 
-      <section className="stats" aria-label="Today">
-        <div className="card stat">
-          <span className="stat__label">Orders today</span>
-          <span className="stat__value">{d.today.orders}</span>
+      <section className="kpis" aria-label="Today">
+        <div className="kpi" data-tone="primary">
+          <span className="kpi__icon"><ClipboardList /></span>
+          <div className="kpi__body">
+            <span className="kpi__label">Orders today</span>
+            <span className="kpi__value">{d.today.orders}</span>
+            <span className="kpi__hint">{d.week.orders} in the last 7 days</span>
+          </div>
         </div>
-        <div className="card stat">
-          <span className="stat__label">Sales today</span>
-          <span className="stat__value">{formatNaira(d.today.salesKobo)}</span>
+        <div className="kpi" data-tone="primary">
+          <span className="kpi__icon"><ShoppingBag /></span>
+          <div className="kpi__body">
+            <span className="kpi__label">Sales today</span>
+            <span className="kpi__value">{formatNaira(d.today.salesKobo)}</span>
+            <span className="kpi__hint">What customers paid for food</span>
+          </div>
         </div>
-        <div className="card stat">
-          <span className="stat__label">You receive today</span>
-          <span className="stat__value stat__value--accent">{formatNaira(d.today.payoutKobo)}</span>
+        <div className="kpi" data-tone="success">
+          <span className="kpi__icon"><Wallet /></span>
+          <div className="kpi__body">
+            <span className="kpi__label">You receive today</span>
+            <span className="kpi__value">{formatNaira(d.today.payoutKobo)}</span>
+            <span className="kpi__hint">After Vendo’s commission</span>
+          </div>
         </div>
-        <div className="card stat">
-          <span className="stat__label">Rating</span>
-          <span className="stat__value">{s.ratingCount ? `${s.rating.toFixed(1)} ★` : "New"}</span>
-          <span className="small muted">{s.ratingCount ? `${s.ratingCount} ratings` : "No ratings yet"}</span>
+        <div className="kpi" data-tone="warning">
+          <span className="kpi__icon"><Star /></span>
+          <div className="kpi__body">
+            <span className="kpi__label">Rating</span>
+            <span className="kpi__value">{s.ratingCount ? s.rating.toFixed(1) : "New"}</span>
+            <span className="kpi__hint">{s.ratingCount ? `From ${s.ratingCount} ratings` : "No ratings yet"}</span>
+          </div>
         </div>
       </section>
 
@@ -153,7 +168,7 @@ export default function DashboardPage() {
                       <button type="button" className="strong" style={{ background: "none", border: 0, padding: 0, cursor: "pointer" }} onClick={() => openOrder(o.id)}>
                         {o.code}
                       </button>
-                      <div className="small muted">{o.customerName}</div>
+                      {o.customerName && o.customerName !== "Customer" ? <div className="small muted">{o.customerName}</div> : null}
                     </td>
                     <td className="muted">{o.items.map((i) => `${i.quantity} × ${i.name}`).join(", ")}</td>
                     <td>

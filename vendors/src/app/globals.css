@@ -1503,3 +1503,163 @@ svg {
   position: absolute;
   inset: 0;
 }
+
+/* ================= vendor refresh ================= */
+
+/* headline figures */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+}
+.kpi {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  padding: 18px;
+  border-radius: 18px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  min-width: 0;
+}
+.kpi__icon {
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: grid;
+  place-items: center;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.kpi__icon svg {
+  width: 20px;
+  height: 20px;
+}
+.kpi[data-tone="primary"] .kpi__icon {
+  background: var(--primary-soft);
+  color: var(--blue);
+}
+.kpi[data-tone="success"] .kpi__icon {
+  background: var(--success-soft);
+  color: var(--success);
+}
+.kpi[data-tone="warning"] .kpi__icon {
+  background: var(--warning-soft);
+  color: var(--warning);
+}
+.kpi__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.kpi__label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.kpi__value {
+  font-size: clamp(20px, 2.1vw, 26px);
+  font-weight: 600;
+  line-height: 1.15;
+  color: var(--heading);
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+}
+.kpi__hint {
+  font-size: 12.5px;
+  color: var(--subtle);
+}
+
+/* payouts */
+.payouts {
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  align-items: start;
+}
+.balance {
+  display: grid;
+  gap: 6px;
+  background: var(--blue);
+  border-color: var(--blue);
+  color: #fff;
+  box-shadow: var(--shadow-blue);
+}
+.balance__label {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.balance__value {
+  font-size: clamp(32px, 5vw, 44px);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.balance__held {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.85);
+}
+.balance__form {
+  display: grid;
+  gap: 12px;
+  margin-top: 14px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+details.advanced {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+}
+details.advanced summary {
+  cursor: pointer;
+  font-weight: 500;
+  color: var(--heading);
+}
+details.advanced[open] summary {
+  margin-bottom: 10px;
+}
+details.advanced > p {
+  margin-bottom: 12px;
+}
+
+@media (max-width: 1100px) {
+  .payouts {
+    grid-template-columns: 1fr !important;
+  }
+}
+@media (max-width: 720px) {
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .kpi {
+    flex-direction: column;
+    gap: 10px;
+    padding: 14px;
+  }
+  .kpi__icon {
+    width: 36px;
+    height: 36px;
+  }
+  .kpi__value {
+    font-size: clamp(17px, 5.2vw, 21px);
+  }
+  /* rows are cards here: the "new" marker runs down the card's edge instead of through the first line of text */
+  .table tr[data-new="true"] td:first-child {
+    box-shadow: none;
+  }
+  .table tr[data-new="true"] {
+    box-shadow: inset 4px 0 0 var(--blue);
+  }
+}
+@media (max-width: 380px) {
+  .kpis {
+    grid-template-columns: 1fr;
+  }
+}
