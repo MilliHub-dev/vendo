@@ -125,6 +125,11 @@ export async function buildApp(env: Env, dependencies: Dependencies) {
     if (error instanceof ApiError) ({ statusCode: status, code, message } = error);
     else if (hasZodFastifySchemaValidationErrors(error) || (error instanceof Error && 'validation' in error)) {
       status = 400; code = 'VALIDATION_ERROR'; message = 'Check the request fields and try again.';
+      // name the fields at fault (never their values), so the person can see what to correct
+      const issues = (error as { validation?: { instancePath?: string; message?: string }[] }).validation;
+      const named = [...new Set((issues ?? []).map((i) => (i.instancePath ?? '').replace(/^\//, '').replace(/\//g, '.')).filter(Boolean))].slice(0, 5);
+      const only = issues?.length === 1 && issues[0]?.message ? ` — ${issues[0].message}` : '';
+      if (named.length) message = `Check ${named.join(', ')}${only} and try again.`;
     } else if (error instanceof Error && 'statusCode' in error && typeof error.statusCode === 'number' && error.statusCode < 500) {
       status = error.statusCode; code = status === 429 ? 'RATE_LIMITED' : 'INVALID_REQUEST';
       message = status === 429 ? 'Too many requests. Please try again later.' : 'The request could not be processed.';

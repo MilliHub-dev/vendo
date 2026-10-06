@@ -12,15 +12,15 @@ import { formatValue, labelOf, textOf } from "@/lib/format";
 
 import { Button, Confirm, Empty, Input, Modal, Spinner, Switch } from "./ui";
 
-export type Field = { key: string; label: string; type?: "text" | "number" | "boolean" | "select" | "json" | "cities" | "datetime-local" | "money"; options?: string[]; nullable?: boolean; optional?: boolean; min?: number; max?: number; value?: unknown; hint?: string };
+export type Field = { key: string; label: string; type?: "text" | "number" | "boolean" | "select" | "json" | "cities" | "datetime-local" | "money"; options?: string[]; nullable?: boolean; optional?: boolean; min?: number; max?: number; minLength?: number; maxLength?: number; value?: unknown; hint?: string };
 export type Action = { label: string; path: string | ((row: Row) => string); method?: string; fields?: Field[]; initial?: (row: Row) => Row; transform?: (value: Row, row: Row) => Row; show?: (row: Row) => boolean; detail?: string; danger?: boolean };
 export type Dataset = { label: string; resource?: string; path?: string; columns: string[]; actions?: Action[]; create?: Action; id?: string };
 
 export const text = (v: unknown): string => (v == null ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v));
 export const rowId = (r: Row) => String(r.id ?? r.profile_id);
 export const field = (key: string, label: string, type: Field["type"] = "text", extra: Partial<Field> = {}): Field => ({ key, label, type, ...extra });
-export const reason = field("reason", "Reason", "text", { hint: "At least 10 characters. Saved to the audit log." });
-export const note = field("note", "Review note", "text", { hint: "At least 10 characters. The person concerned may see this." });
+export const reason = field("reason", "Reason", "text", { minLength: 10, maxLength: 500, hint: "At least 10 characters. Saved to the audit log." });
+export const note = field("note", "Review note", "text", { minLength: 10, maxLength: 1000, hint: "At least 10 characters, e.g. “Documents checked and approved.” The person concerned may see this." });
 /** An amount. Staff type naira; the API is sent kobo. */
 export const money = (key: string, label: string) => field(key, label, "money", { min: 0 });
 
@@ -164,7 +164,7 @@ export function EditForm({ action, row = {}, onClose }: { action: Action; row?: 
         </label>
       );
     if (f.type === "money") return <Input key={f.key} label={label} prefix="₦" inputMode="decimal" type="number" step="0.01" min={f.min === undefined ? undefined : f.min / 100} required={required} hint={f.hint} value={String(values[f.key] ?? "")} onChange={(e) => set(f.key, e.target.value)} />;
-    return <Input key={f.key} label={label} type={f.type ?? "text"} required={required} min={f.min} max={f.max} step={f.type === "number" ? "any" : undefined} hint={f.hint} value={String(values[f.key] ?? "")} onChange={(e) => set(f.key, e.target.value)} />;
+    return <Input key={f.key} label={label} type={f.type ?? "text"} required={required} min={f.min} max={f.max} minLength={f.minLength} maxLength={f.maxLength} step={f.type === "number" ? "any" : undefined} hint={f.hint} value={String(values[f.key] ?? "")} onChange={(e) => set(f.key, e.target.value)} />;
   };
 
   return (
