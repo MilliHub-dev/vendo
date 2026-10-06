@@ -24,7 +24,7 @@ const greeting = () => {
 /** The four queues staff work through, each linking to where it is handled. */
 const queues: { key: string; label: string; waiting: string; href: string; icon: typeof Bike }[] = [
   { key: "rider_applications", label: "Rider applications", waiting: "waiting for review", href: "/riders/", icon: Bike },
-  { key: "vendor_applications", label: "Vendor applications", waiting: "waiting for review", href: "/vendors/", icon: Store },
+  { key: "vendor_applications", label: "Vendor applications", waiting: "waiting for review", href: "/vendors/?tab=applications", icon: Store },
   { key: "withdrawals", label: "Withdrawals", waiting: "waiting for approval", href: "/payments/", icon: Wallet },
   { key: "disputes", label: "Disputed orders", waiting: "need a decision", href: "/orders/", icon: AlertTriangle },
 ];

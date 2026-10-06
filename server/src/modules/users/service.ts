@@ -8,6 +8,10 @@ export function assertActive(profile: Profile): void {
 
 export function requireCompleteProfile(profile: Profile): void {
   assertActive(profile);
+  // Staff sign in by email and are set up by Vendo, not through customer onboarding, so they have no
+  // contact phone to add. Without this, an admin was refused on every route outside the admin portal
+  // (reviewing vendor applications and riders, city rules, payouts) for not having "finished sign-up".
+  if (profile.role === 'admin' && profile.name) return;
   if (profile.onboarding_step !== 'complete') throw new ApiError(403, 'ONBOARDING_REQUIRED', 'Complete your name and email before continuing.');
 }
 

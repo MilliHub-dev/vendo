@@ -61,3 +61,13 @@ test('payout banks come from Paystack, cleaned and cached, and a stale list surv
   const broken = createPaystackBanks('sk_test_x', fetcher);
   await assert.rejects(() => broken.list(), /temporarily unavailable/);
 });
+
+test('an admin without a contact phone is not treated as an unfinished sign-up', async () => {
+  const { requireCompleteProfile } = await import('../src/modules/users/service.js');
+  const base = { id: randomUUID(), phone: null, name: 'Ops Admin', email: 'ops@vendoltd.com', email_verified: true, status: 'active' as const, created_at: '', updated_at: '' };
+  assert.doesNotThrow(() => requireCompleteProfile({ ...base, role: 'admin', onboarding_step: 'phone_required' }));
+  // customers, riders and vendors still have to finish; and a suspended admin is still refused
+  assert.throws(() => requireCompleteProfile({ ...base, role: 'customer', onboarding_step: 'phone_required' }), /Complete your name/);
+  assert.throws(() => requireCompleteProfile({ ...base, role: 'admin', name: null, onboarding_step: 'name_required' }), /Complete your name/);
+  assert.throws(() => requireCompleteProfile({ ...base, role: 'admin', status: 'suspended', onboarding_step: 'phone_required' }), /cannot access/);
+});

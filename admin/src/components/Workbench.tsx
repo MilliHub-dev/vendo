@@ -252,6 +252,12 @@ function RowActions({ actions, onOpen, onAction }: { actions: Action[]; onOpen: 
 
 export function Workbench({ datasets, description, detail }: { datasets: Dataset[]; description?: string; detail?: (row: Row, tab: Dataset) => ReactNode }) {
   const [tabIndex, setTabIndex] = useState(0);
+  // `?tab=applications` opens that tab, so a "waiting for review" link lands on the queue itself
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("tab")?.toLowerCase();
+    const i = wanted ? datasets.findIndex((d) => d.label.toLowerCase().replace(/\s+/g, "-") === wanted) : -1;
+    if (i > 0) setTabIndex(i);
+  }, []);
   const [offset, setOffset] = useState(0);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Row | null>(null);

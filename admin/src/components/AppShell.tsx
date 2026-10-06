@@ -85,7 +85,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           {nav.map(({ href, label, icon: Icon, queue }) => {
             const waiting = queue ? Number(overview.data?.queues?.[queue] ?? 0) : 0;
             return (
-              <Link key={href} href={href} aria-current={current?.href === href ? "page" : undefined} onClick={() => setMenu(false)}>
+              <Link key={href} href={waiting > 0 && queue === "vendor_applications" ? `${href}?tab=applications` : href} aria-current={current?.href === href ? "page" : undefined} onClick={() => setMenu(false)}>
                 <Icon />
                 <span>{label}</span>
                 {waiting > 0 ? <span className="nav__badge">{waiting > 99 ? "99+" : waiting}</span> : null}
