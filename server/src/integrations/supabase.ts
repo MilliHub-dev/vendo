@@ -13,7 +13,33 @@ function sessionResponse(session: Session | null): AuthSession {
   return { access_token: session.access_token, refresh_token: session.refresh_token, expires_in: session.expires_in, token_type: 'bearer' };
 }
 
-export function createSupabaseAuth(url: string, publicKey: string): AuthGateway {
+/**
+ * `direct`: with the service key and our own email sender, the server asks Supabase to generate
+ * the sign-in code without emailing it, and sends the code itself. Without it, Supabase's own
+ * mail service sends the email (rate-limited, and unreliable without custom SMTP).
+ */
+export type DirectEmail = { serviceRoleKey: string; send(email: string, code: string): Promise<void> };
+
+export function createSupabaseAuth(url: string, publicKey: string, direct?: DirectEmail): AuthGateway {
+  // Privileged client: used only to generate sign-in codes. Never used to act as a customer.
+  const admin = () => createClient(url, direct!.serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10000) }) },
+  });
+  /** A one-time code for this address, created by Supabase but not emailed. New addresses get an (unconfirmed) account first. */
+  const generateCode = async (email: string): Promise<string> => {
+    let result = await admin().auth.admin.generateLink({ type: 'magiclink', email });
+    if (result.error && result.error.status !== undefined && result.error.status < 500 && result.error.status !== 429) {
+      const created = await admin().auth.admin.createUser({ email, email_confirm: false });
+      if (created.error && created.error.status !== 422) throw providerError(created.error, 'Unable to request a verification code.');
+      result = await admin().auth.admin.generateLink({ type: 'magiclink', email });
+    }
+    if (result.error) throw providerError(result.error, 'Unable to request a verification code.');
+    const code = result.data.properties?.email_otp;
+    // the apps and the verify endpoint use six digits; any other length is a Supabase setting to correct
+    if (!code || !/^\d{6}$/.test(code)) throw new ApiError(503, 'AUTH_MISCONFIGURED', 'Email sign-in is not configured correctly.');
+    return code;
+  };
   // Auth operations mutate SDK session state. A fresh client per operation prevents
   // one API request from inheriting another customer's session.
   const client = () => createClient(url, publicKey, {
@@ -22,6 +48,7 @@ export function createSupabaseAuth(url: string, publicKey: string): AuthGateway 
   });
   return {
     async requestEmailOtp(email) {
+      if (direct) return direct.send(email, await generateCode(email));
       const { error } = await client().auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
       if (error) throw providerError(error, 'Unable to request a verification code.');
     },

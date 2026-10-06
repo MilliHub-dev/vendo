@@ -35,3 +35,41 @@ test('Supabase adapter checks verified phone identity and isolates authenticatio
   const logout = requests.find((request) => request.path.endsWith('/logout'))!;
   assert.equal(logout.authorization, 'Bearer legitimate-session');
 });
+
+test('with the service key and our own sender, the server emails the sign-in code itself and Supabase sends nothing', async (t) => {
+  const calls: { path: string; key: string | null; body: Record<string, unknown> | null }[] = [];
+  const sent: { email: string; code: string }[] = [];
+  let knownUser = true, otp = '482913';
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async (input, init) => {
+    const path = new URL(String(input)).pathname;
+    const body = typeof init?.body === 'string' ? JSON.parse(init.body) as Record<string, unknown> : null;
+    calls.push({ path, key: new Headers(init?.headers).get('apikey'), body });
+    if (path.endsWith('/admin/generate_link')) {
+      if (!knownUser) return Response.json({ code: 404, error_code: 'user_not_found', msg: 'User not found' }, { status: 404 });
+      return Response.json({ id: alice.id, aud: 'authenticated', email: body?.email, action_link: 'https://test.supabase.co/x', email_otp: otp, hashed_token: 'h', verification_type: 'magiclink', redirect_to: '' });
+    }
+    if (path.endsWith('/admin/users')) { knownUser = true; return Response.json({ id: alice.id, aud: 'authenticated', email: body?.email, created_at: new Date().toISOString(), app_metadata: {}, user_metadata: {} }); }
+    return Response.json({});
+  };
+  const auth = createSupabaseAuth('https://test.supabase.co', 'public-test-key', { serviceRoleKey: 'service-test-key', async send(email, code) { sent.push({ email, code }); } });
+
+  await auth.requestEmailOtp!('amina@example.com');
+  assert.deepEqual(sent, [{ email: 'amina@example.com', code: '482913' }]);
+  assert.ok(calls.every((c) => !c.path.endsWith('/otp')), 'Supabase must not be asked to send the email');
+  assert.equal(calls[0]!.key, 'service-test-key');
+  assert.equal(calls[0]!.body?.type, 'magiclink');
+
+  // a new address gets an unconfirmed account first; entering the code is what confirms it
+  knownUser = false; calls.length = 0; sent.length = 0;
+  await auth.requestEmailOtp!('new@example.com');
+  assert.deepEqual(calls.map((c) => c.path.split('/').slice(-2).join('/')), ['admin/generate_link', 'admin/users', 'admin/generate_link']);
+  assert.equal(calls[1]!.body?.email_confirm, false);
+  assert.deepEqual(sent, [{ email: 'new@example.com', code: '482913' }]);
+
+  // Supabase set to 8-digit codes: fail clearly instead of emailing a code the app can't accept
+  otp = '48291377'; sent.length = 0;
+  await assert.rejects(() => auth.requestEmailOtp!('amina@example.com'), /not configured correctly/);
+  assert.equal(sent.length, 0);
+});

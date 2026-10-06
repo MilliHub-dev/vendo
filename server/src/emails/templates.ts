@@ -20,6 +20,14 @@ export function verificationEmail(code: string): RenderedEmail {
   return { subject, text, html: layout(subject, 'EMAIL VERIFICATION', content, 'Your email verification code expires in 10 minutes.') };
 }
 
+/** The sign-in code. Supabase generates it; we send it ourselves through Brevo so delivery doesn't depend on Supabase's mail service. */
+export function signInCodeEmail(code: string): RenderedEmail {
+  if (!/^\d{6}$/.test(code)) throw new Error('A six-digit sign-in code is required.');
+  const subject = `${code} is your Vendo sign-in code`;
+  const text = `Your Vendo sign-in code is ${code}. Enter it in the app to continue. It expires soon and works once. Do not share it with anyone.`;
+  const content = `<p style="font-size:16px;line-height:1.6">Enter this code in Vendo to sign in.</p><p style="padding:20px;text-align:center;background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;font-size:32px;font-weight:bold;letter-spacing:8px">${code}</p><p style="font-size:14px;line-height:1.6">The code expires soon and works once. If you did not ask to sign in, ignore this email. Vendo staff will never ask you for this code.</p>`;
+  return { subject, text, html: layout(subject, 'SIGN-IN CODE', content, 'Your Vendo sign-in code. It works once.') };
+}
 export function notificationEmail(notification: Pick<Notification, 'kind' | 'title' | 'body' | 'order_id'>): RenderedEmail {
   const reference = notification.order_id ? `\nOrder reference: ${notification.order_id}` : '';
   const text = `${notification.body}${reference}\n\nOpen Vendo to view the latest details.`;

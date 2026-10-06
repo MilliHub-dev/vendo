@@ -5,7 +5,8 @@ import { PostgresAdminPortalRepository } from './modules/admin-portal/repository
 import type { Env } from './config/env.js';
 import { ApiError } from './lib/errors.js';
 import { createPool } from './integrations/database.js';
-import { createSupabaseAuth } from './integrations/supabase.js';
+import { createSupabaseAuth, type DirectEmail } from './integrations/supabase.js';
+import { signInCodeEmail } from './emails/templates.js';
 import { createBrevoWhatsAppSender, createBrevoAlertSender, createBrevoSmsSender, createBrevoEmailSender } from './integrations/brevo.js';
 import { createRedis, MemoryLimits, RedisLimits } from './integrations/limits.js';
 import { PostgresProfileRepository } from './modules/users/repository.js';
@@ -52,6 +53,11 @@ export async function createDependencies(env: Env): Promise<Dependencies> {
     try { await redis.connect(); }
     catch (error) { redis.disconnect(); await pool?.end(); throw error; }
   }
+  // With the service key and Brevo both set, sign-in codes are emailed by this server instead of by Supabase.
+  const brevoKey = env.BREVO_API_KEY, brevoSender = env.BREVO_EMAIL_SENDER;
+  const signInEmail: DirectEmail | undefined = env.SUPABASE_SERVICE_ROLE_KEY && brevoKey && brevoSender
+    ? { serviceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY, send: async (email, code) => createBrevoEmailSender(brevoKey, brevoSender, env.BREVO_EMAIL_SENDER_NAME).send({ to: email, ...signInCodeEmail(code) }) }
+    : undefined;
   const storage=env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY?createObjectStorage(env.SUPABASE_URL,env.SUPABASE_SERVICE_ROLE_KEY,'vendo-public','vendo-documents'):unavailableStorage;
   return {
     vendors:pool?new PostgresVendorRepository(pool):{portal:unavailable,register:unavailable,applications:unavailable,review:unavailable,withdraw:unavailable,stores:unavailable,store:unavailable,update:unavailable,orders:unavailable,order:unavailable,summary:unavailable},
@@ -80,7 +86,7 @@ export async function createDependencies(env: Env): Promise<Dependencies> {
     dispatch: pool ? new PostgresDispatchRepository(pool) : { getCity: unavailable, packages: unavailable, savePackage: unavailable, saveQuote: unavailable, createOrder: unavailable, getCode: unavailable, complete: unavailable },
     food: pool ? new PostgresFoodRepository(pool) : { listVendors: unavailable, getVendor: unavailable, getCity: unavailable, saveVendor: unavailable, saveMenu: unavailable, assignStaff: unavailable, saveQuote: unavailable, createOrder: unavailable, listOrders: unavailable, getOrder: unavailable, vendorAction: unavailable },
     routing: env.MAPBOX_ACCESS_TOKEN_SERVER ? cachedRouting(createMapboxRouting(env.MAPBOX_ACCESS_TOKEN_SERVER)) : { route: unavailable },
-    auth: env.SUPABASE_URL && env.SUPABASE_ANON_KEY ? createSupabaseAuth(env.SUPABASE_URL, env.SUPABASE_ANON_KEY)
+    auth: env.SUPABASE_URL && env.SUPABASE_ANON_KEY ? createSupabaseAuth(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, signInEmail)
       : { requestOtp: unavailable, verifyOtp: unavailable, refresh: unavailable, authenticate: unavailable, logout: unavailable },
     profiles: pool ? new PostgresProfileRepository(pool) : { bootstrap: unavailable, setName: unavailable, setEmail: unavailable },
     accounts: pool ? new PostgresAccountRepository(pool) : { issueVerification: unavailable, discardVerification: unavailable, verifyEmail: unavailable, getPreferences: unavailable, updatePreferences: unavailable, requestDeletion: unavailable, requestRecovery: unavailable },
