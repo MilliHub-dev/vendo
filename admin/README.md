@@ -42,3 +42,12 @@ List screens have pagination, page search, CSV export, live polling, loading/err
 Apply migrations through `202610060015_admin_portal.sql`; deploy the server, notification/finance workers and admin service. Add the exact admin HTTPS origin to server `CORS_ORIGINS`. Keep FCM/device registration and Paystack transfer settings configured on the backend. Scheduled campaigns require the notification worker; bank transfers require enabled transfer processing and configured policies. Storage buckets must be provisioned for document/media workflows.
 
 No live OTP, bank payout, customer balance adjustment or push campaign was sent during local tests. Validate the complete deployed journey with intended test accounts before release. Staff permission splits, retention cohorts and push tap analytics are not part of the current backend.
+
+Provision an administrator with the dedicated script (never the demo catalog seed):
+
+```bash
+cd server
+npm run db:seed-admin -- owner@vendoltd.com "Owner Name"
+```
+
+This creates or promotes the exact active customer identity to `admin`, preserves existing contact information and records provisioning. Rider/vendor and inactive identities require separate review. No fixed login code or password is seeded; login sends a fresh OTP through Supabase/Brevo SMTP.

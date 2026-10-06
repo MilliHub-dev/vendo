@@ -27,7 +27,8 @@
     "worker": "node --env-file-if-exists=.env dist/worker.js",
     "db:backup": "node --import tsx --env-file-if-exists=.env scripts/backup.ts",
     "db:restore": "node --import tsx --env-file-if-exists=.env scripts/restore.ts",
-    "storage:setup": "node --import tsx --env-file-if-exists=.env scripts/setup-storage.ts"
+    "storage:setup": "node --import tsx --env-file-if-exists=.env scripts/setup-storage.ts",
+    "db:seed-admin": "node --import tsx --env-file-if-exists=.env scripts/seed-admin.ts"
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
