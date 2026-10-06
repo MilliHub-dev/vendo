@@ -24,7 +24,7 @@ src/
     dispatch/review
     order/[id]/        placed · track · details
     wallet/  addresses/  notifications  profile-edit  settings/appearance
-  api/                 types, the ApiClient interface, query hooks, and the mock backend
+  api/                 types, the ApiClient interface, query hooks, and the API client (api/http)
   components/
     ui/                Text, Button, Input, Card, Screen, Sheet (bottom-sheet modal), chips, stepper…
     sheets.tsx         item, payment, address, schedule and rating sheets
@@ -38,20 +38,40 @@ assets/images/         app icon, splash, logos, illustrations (art-*.png, render
 reference/             the design references
 ```
 
-## Still placeholders
+## Backend
 
-- **Map**: `RouteMap` is a diagram, not real streets. Mapbox (`@rnmapbox/maps`) needs an access token and a development build; dropping a pin to choose an address comes with it.
-- **Photos**: vendors and dishes show emoji tiles until real photos exist (`imageUrl` is already in the types).
-- **Payments**: card, transfer and top-ups succeed instantly in the mock. The real flow opens Paystack and waits for the server.
-- **Saved addresses** live on the device only; **push notifications** are not wired.
-- **Chat with the rider** (`order/[id]/chat`) runs against the mock: the rider's replies are canned and messages are polled every 2 s. The server needs `listMessages` / `sendMessage` with realtime delivery, and the rider app needs the matching screen.
+The app talks to the Vendo API. Screens only use `src/api/queries.ts`; `src/api/client.ts` is the contract and `src/api/http/` implements it. The address is `EXPO_PUBLIC_API_URL` in `.env` and `eas.json` (`https://api.vendoltd.com`). There is no demo or sample-data mode.
 
-## Working without a backend
+Sign-in tokens are kept in the device keychain (`expo-secure-store`). An expired session is renewed automatically; if it can't be, the app returns to sign-in.
 
-Screens only use `src/api/queries.ts`. Today `client.ts` points at the mock; when `server/` exists, add `src/api/http/` implementing the same `ApiClient` and switch with `EXPO_PUBLIC_API_MODE=http`.
+### Verified against the live API
 
-Mock sign-in: any valid Nigerian number, code `123456`. The number `+2348030000000` is an existing user; any other number goes through sign-up.
+In a browser: choosing a city, vendor lists and menus with photos, item options, cart, and the home "Picks for you" row.
 
-Vendor names and menus in `src/api/mock/data.ts` are invented placeholders.
+### Not yet run end to end
 
-Mock promo codes: `VENDO10` (10% off food, up to ₦1,000) and `FREEDEL` (free delivery). Mock referral codes: `AMINA24` and `VENDO2026`; a referred customer gets ₦500 off their first order and the referrer earns ₦500. These rules and amounts are placeholders in `src/api/mock/index.ts` — the real ones belong to the server and admin dashboard, which have no promo or referral endpoints yet (`checkPromo`, `promoCode` on quotes, `getReferrals`, `applyReferralCode` in `src/api/client.ts` are the contract to build).
+Everything that needs a signed-in account was written against the server's contract (`server/docs/openapi.json`) and has not been exercised with a real account: sign-in and sign-up, profile, saved addresses and address search, delivery quotes, placing and paying for orders, order list, tracking, cancelling, rating, dispatch, rider chat, wallet and top-up, notifications, referrals. Expect fixes on the first real run.
+
+### What the server and accounts still need
+
+- **Email sign-in routes deployed** (`/v1/auth/email/otp/*`, `PATCH /v1/me/phone`).
+- **Supabase email**: the "Magic Link" template must show the 6-digit code (`{{ .Token }}`), and custom SMTP must be set for real volumes.
+- **Paystack**: `PAYSTACK_SECRET_KEY` on the server. Without it card, transfer and top-up can't start.
+- **Real city settings**: the service areas and fares in the database are test values.
+- **Real vendors**: the vendors and menus in the database are seeded test data.
+
+### Before a store release
+
+- **Map**: `components/RouteMap.tsx` is a drawn stand-in. Mapbox needs a token and a development build.
+- **Push notifications**: the app doesn't register the device with the server yet (`POST /v1/me/devices`).
+- **Live updates**: orders, tracking and chat are polled every few seconds; the server's streams aren't used.
+- **Store listing items**: app icons and splash are in place; privacy policy and terms on vendoltd.com are still drafts.
+- **A build on a real phone**: so far the app has only been run in a browser. No EAS build has completed.
+
+### Known gaps
+
+- A promo code is only checked at checkout, as part of pricing the order.
+- Vendor cards don't show a delivery fee or review count; the server prices delivery per address and doesn't send review counts.
+- Referral reward amounts and friends' names aren't sent by the server, so the Referrals screen shows counts and generic wording.
+- "Order again" for dishes with options reopens the vendor's menu instead of refilling the cart.
+- The home banners are fixed artwork, not the server's `/v1/growth/banners`.

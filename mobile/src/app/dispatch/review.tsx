@@ -21,27 +21,20 @@ export default function DispatchReviewScreen() {
   const [payment, setPayment] = useState<PaymentMethod>('wallet');
   const [paySheet, setPaySheet] = useState(false);
   const createOrder = useCreateOrder();
-  const quote = useQuote(draft ? { type: 'dispatch', pickup: draft.pickup, dropoff: draft.dropoff, packageSize: draft.packageSize } : null);
+  const request = draft ? ({ type: 'dispatch', pickup: draft.pickup, dropoff: draft.dropoff, packageSize: draft.packageSize, packageNote: draft.packageNote, fragile: draft.fragile, receiver: draft.receiver } as const) : null;
+  const quote = useQuote(request);
 
   if (!draft) return createOrder.isSuccess ? null : <Redirect href="/send" />;
   const size = packageSizes.find((s) => s.value === draft.packageSize)!;
 
   const submit = () =>
     createOrder.mutate(
-      {
-        type: 'dispatch',
-        pickup: draft.pickup,
-        dropoff: draft.dropoff,
-        packageSize: draft.packageSize,
-        packageNote: draft.fragile ? `${draft.packageNote} (fragile)` : draft.packageNote,
-        receiver: draft.receiver,
-        scheduledFor: draft.scheduledFor ?? undefined,
-        paymentMethod: payment,
-      },
+      { ...request!, scheduledFor: draft.scheduledFor ?? undefined, paymentMethod: payment },
       {
         onSuccess: (order) => {
           router.dismissTo('/');
-          router.push({ pathname: '/order/[id]/track', params: { id: order.id } });
+          // not paid (payment page closed, or wallet short): open the order, where it can be paid
+          router.push({ pathname: order.isPaid === false ? '/order/[id]' : '/order/[id]/track', params: { id: order.id } });
           setDraft(null);
           resetForm();
         },
@@ -103,7 +96,7 @@ export default function DispatchReviewScreen() {
       </View>
       {createOrder.isError ? <Text color="danger">{createOrder.error.message}</Text> : null}
       <Text variant="small" color="subtle" center>
-        You’ll get a delivery code to share with the receiver. The rider needs it to complete the delivery.
+        You’ll get a delivery code to share with the receiver. The rider needs it to complete the delivery. By booking you confirm the package fits the size you chose and contains nothing illegal, dangerous or prohibited.
       </Text>
 
       <PaymentSheet visible={paySheet} value={payment} totalKobo={quote.data?.totalKobo} onClose={() => setPaySheet(false)} onChange={setPayment} />

@@ -20,12 +20,16 @@ export default function JobDoneScreen() {
       <Text color="muted" center>
         {title} · {code}
       </Text>
-      <Text variant="eyebrow">You earned</Text>
-      <Text variant="display" color="primary" style={{ fontSize: 44, lineHeight: 50 }}>
-        {formatNaira(Number(earning) || 0)}
-      </Text>
+      {earning ? (
+        <>
+          <Text variant="eyebrow">You earned</Text>
+          <Text variant="display" color="primary" style={{ fontSize: 44, lineHeight: 50 }}>
+            {formatNaira(Number(earning))}
+          </Text>
+        </>
+      ) : null}
       <Text variant="small" color="subtle" center>
-        Added to your Vendo balance. You’re back online for new orders.
+        {earning ? 'Added to your Vendo balance.' : 'Your earning is being added to your Vendo balance.'} You’re back online for new orders.
       </Text>
     </Screen>
   );

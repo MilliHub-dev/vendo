@@ -1,11 +1,12 @@
 "use client";
 
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Banknote, Bell, ClipboardList, LayoutDashboard, LogOut, Settings, Star, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 
+import { api } from "@/api/client";
 import { useNotifications, useOrders, useSetOpen, useStore } from "@/api/queries";
 import { dayLabel } from "@/lib/dates";
 import { stageOf, useSession } from "@/store/session";
@@ -57,11 +58,13 @@ export function AppShell({ children }: { children: ReactNode }) {
   const { user, signOut } = useSession();
   const store = useStore(ok);
   const orders = useOrders(ok);
+  const stores = useQuery({queryKey:["stores"],queryFn:()=>api.listStores(),enabled:ok});
   const setOpen = useSetOpen();
   const [loggingOut, setLoggingOut] = useState(false);
   const [bell, setBell] = useState(false);
 
   if (!ok) return <Spinner />;
+  if (store.isError) return <p className="note note--danger">{store.error.message}</p>;
 
   const waiting = orders.data?.filter((o) => o.status === "new").length ?? 0;
   const open = !!store.data?.isOpen;
@@ -109,6 +112,7 @@ export function AppShell({ children }: { children: ReactNode }) {
             <span>{open ? "Open for orders" : "Closed"}</span>
             <Switch checked={open} disabled={setOpen.isPending} onChange={(next) => setOpen.mutate(next)} label={open ? "Close store" : "Open store"} />
           </div>
+          {stores.data && stores.data.length > 1 ? <select aria-label="Select store" className="select" value={store.data?.id ?? ""} onChange={e=>{const selected=stores.data?.find(s=>s.id===e.target.value);if(selected){queryClient.clear();useSession.getState().setStore(selected);}}}>{stores.data.filter(s=>s.approval==="approved").map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select> : null}
           <ThemeToggle />
           <div style={{ position: "relative" }}>
             <button type="button" className="icon-btn" aria-label="Notifications" aria-expanded={bell} onClick={() => setBell((v) => !v)}>
@@ -143,6 +147,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           onClose={() => setLoggingOut(false)}
           onConfirm={() => {
             queryClient.clear();
+            void api.logout().catch(() => {});
             signOut();
           }}
         />

@@ -3,7 +3,7 @@ import { ChevronDown } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { useBanks, useEarnings, useRequestWithdrawal } from '@/api/queries';
+import { useBanks, useEarnings, usePayoutAccount, useRequestWithdrawal } from '@/api/queries';
 import type { Bank } from '@/api/types';
 import { Button, Chip, Input, Screen, Sheet, Text } from '@/components/ui';
 import { formatNaira, nairaToKobo } from '@/lib/money';
@@ -18,24 +18,28 @@ export default function WithdrawScreen() {
   const [amount, setAmount] = useState('');
   const [bank, setBank] = useState<Bank | null>(null);
   const [account, setAccount] = useState('');
-  const [name, setName] = useState('');
+  const saved = usePayoutAccount();
+  const [changing, setChanging] = useState(false);
+  // a saved account is used as it is; the bank fields only show for a first account or a change
+  const useSaved = !!saved.data && !changing;
   const [picker, setPicker] = useState(false);
   const [touched, setTouched] = useState(false);
 
   const balance = earnings.data?.balanceKobo ?? 0;
-  const min = earnings.data?.minWithdrawalKobo ?? 100_000;
+  // set per city on the server, which has the final say when the app doesn't know it
+  const min = earnings.data?.minWithdrawalKobo ?? 100;
   const kobo = nairaToKobo(Number(amount) || 0);
   const errors = {
-    amount: kobo < min ? `The minimum withdrawal is ${formatNaira(min)}` : kobo > balance ? `That’s more than your balance of ${formatNaira(balance)}` : null,
-    bank: !bank ? 'Choose your bank' : null,
-    account: !/^\d{10}$/.test(account) ? 'Account numbers have 10 digits' : null,
-    name: name.trim().length < 3 ? 'Enter the name on the account' : null,
+    amount: kobo < min ? (earnings.data?.minWithdrawalKobo ? `The minimum withdrawal is ${formatNaira(min)}` : 'Enter an amount') : kobo > balance ? `That’s more than your balance of ${formatNaira(balance)}` : null,
+    bank: !useSaved && !bank ? 'Choose your bank' : null,
+    account: !useSaved && !/^\d{10}$/.test(account) ? 'Account numbers have 10 digits' : null,
   };
   const valid = !Object.values(errors).some(Boolean);
 
   const submit = () => {
     setTouched(true);
-    if (valid && bank) request.mutate({ amountKobo: kobo, bankCode: bank.code, accountNumber: account, accountName: name.trim() }, { onSuccess: () => router.back() });
+    if (!valid) return;
+    request.mutate(useSaved ? { amountKobo: kobo } : { amountKobo: kobo, bankCode: bank!.code, accountNumber: account }, { onSuccess: () => router.back() });
   };
 
   return (
@@ -51,24 +55,43 @@ export default function WithdrawScreen() {
         <Chip label="All" selected={kobo === balance && balance > 0} onPress={() => setAmount(String(Math.floor(balance / 100)))} />
       </View>
 
+      {useSaved && saved.data ? (
+        <View style={[styles.select, { backgroundColor: colors.surface, borderColor: colors.line, minHeight: 68 }]}>
+          <View style={{ flex: 1 }}>
+            <Text variant="bodyMedium" color="heading">
+              {saved.data.bankName} ••••{saved.data.lastFour}
+            </Text>
+            <Text variant="small" color="muted">
+              {saved.data.accountName}
+            </Text>
+          </View>
+          <Chip label="Change" onPress={() => setChanging(true)} />
+        </View>
+      ) : (
+        <>
       <View style={{ gap: 6 }}>
-        <Text variant="smallMedium" color="heading">
-          Bank
-        </Text>
-        <Pressable accessibilityRole="button" accessibilityLabel={bank ? `Bank: ${bank.name}` : 'Choose bank'} onPress={() => setPicker(true)} style={[styles.select, { backgroundColor: colors.surface, borderColor: touched && errors.bank ? colors.danger : colors.line }]}>
-          <Text color={bank ? 'text' : 'subtle'} style={{ flex: 1 }}>
-            {bank?.name ?? 'Choose your bank'}
+          <Text variant="smallMedium" color="heading">
+            Bank
           </Text>
-          <ChevronDown size={18} color={colors.subtle} />
-        </Pressable>
-        {touched && errors.bank ? (
-          <Text variant="small" color="danger">
-            {errors.bank}
+          <Pressable accessibilityRole="button" accessibilityLabel={bank ? `Bank: ${bank.name}` : 'Choose bank'} onPress={() => setPicker(true)} style={[styles.select, { backgroundColor: colors.surface, borderColor: touched && errors.bank ? colors.danger : colors.line }]}>
+            <Text color={bank ? 'text' : 'subtle'} style={{ flex: 1 }}>
+              {bank?.name ?? 'Choose your bank'}
+            </Text>
+            <ChevronDown size={18} color={colors.subtle} />
+          </Pressable>
+          {touched && errors.bank ? (
+            <Text variant="small" color="danger">
+              {errors.bank}
+            </Text>
+          ) : null}
+        </View>
+        <Input label="Account number" placeholder="10 digits" value={account} onChangeText={(t) => setAccount(t.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" error={touched ? errors.account : null} />
+          <Text variant="small" color="subtle">
+            We check the account with your bank and pay only to the name it returns.
           </Text>
-        ) : null}
-      </View>
-      <Input label="Account number" placeholder="10 digits" value={account} onChangeText={(t) => setAccount(t.replace(/\D/g, '').slice(0, 10))} keyboardType="number-pad" error={touched ? errors.account : null} />
-      <Input label="Account name" placeholder="As it appears at your bank" value={name} onChangeText={setName} autoCapitalize="words" error={touched ? errors.name : null} />
+          {saved.data ? <Chip label="Keep my saved account" onPress={() => setChanging(false)} /> : null}
+        </>
+      )}
       {request.isError ? <Text color="danger">{request.error.message}</Text> : null}
       <Text variant="small" color="subtle">
         The amount is held as soon as you request it. The Vendo team approves withdrawals and Paystack sends the money to your bank. If a transfer fails, the money returns to your balance.

@@ -6,28 +6,45 @@ import { useEffect, useState } from 'react';
 // state starts fresh each time without resetting it in an effect.
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { api } from '@/api/client';
 import { useWallet } from '@/api/queries';
 import type { MenuItem, PaymentMethod, Place } from '@/api/types';
 import { dayLabel, formatDateTime, formatTime, scheduleSlots } from '@/lib/dates';
 import { formatNaira } from '@/lib/money';
-import { searchPlaces } from '@/lib/photon';
 import { useAddresses } from '@/store/addresses';
+import { useCity } from '@/store/city';
+import type { ItemChoice } from '@/store/cart';
 import { radius, spacing, useTheme } from '@/theme';
 
 import { Button, Chip, Input, OptionRow, Sheet, Stepper, Text, Thumb } from './ui';
 
 // ---------------------------------------------------------------- item
 
-/** Dish details with quantity and a note, as in the reference's "Add to cart" bar. */
-type ItemSheetProps = { onClose: () => void; onAdd: (item: MenuItem, quantity: number, note: string) => void };
+/** Dish details with options (e.g. choice of protein), quantity and a note, as in the reference's "Add to cart" bar. */
+type ItemSheetProps = { onClose: () => void; onAdd: (item: MenuItem, choice: ItemChoice) => void };
 
 export function ItemSheet({ item, ...rest }: ItemSheetProps & { item: MenuItem | null }) {
   return item ? <ItemSheetOpen key={item.id} item={item} {...rest} /> : null;
 }
 
 function ItemSheetOpen({ item, onClose, onAdd }: ItemSheetProps & { item: MenuItem }) {
+  const groups = item.optionGroups ?? [];
   const [quantity, setQuantity] = useState(1);
   const [note, setNote] = useState('');
+  const [picked, setPicked] = useState<string[]>([]);
+
+  const toggle = (group: (typeof groups)[number], id: string) =>
+    setPicked((now) => {
+      const inGroup = group.options.map((o) => o.id);
+      const mine = now.filter((x) => inGroup.includes(x));
+      const others = now.filter((x) => !inGroup.includes(x));
+      if (group.max === 1) return mine.includes(id) && group.min === 0 ? others : [...others, id]; // pick one: tapping another swaps
+      if (mine.includes(id)) return now.filter((x) => x !== id);
+      return mine.length >= group.max ? now : [...now, id];
+    });
+  const missing = groups.find((g) => g.options.filter((o) => picked.includes(o.id)).length < g.min);
+  const unit = item.priceKobo + groups.flatMap((g) => g.options).reduce((sum, o) => sum + (picked.includes(o.id) ? o.priceKobo : 0), 0);
+
   return (
     <Sheet
       visible
@@ -35,15 +52,30 @@ function ItemSheetOpen({ item, onClose, onAdd }: ItemSheetProps & { item: MenuIt
       footer={
         <View style={styles.addBar}>
           <Stepper value={quantity} min={1} onChange={setQuantity} label={item.name} />
-          <Button title={`Add · ${formatNaira(item.priceKobo * quantity)}`} style={{ flex: 1 }} onPress={() => onAdd(item, quantity, note.trim())} />
+          <Button title={missing ? missing.name : `Add · ${formatNaira(unit * quantity)}`} disabled={!!missing} style={{ flex: 1 }} onPress={() => onAdd(item, { quantity, note: note.trim() || undefined, optionIds: picked })} />
         </View>
       }>
-      <Thumb emoji={item.emoji} size={120} emojiSize={72} rounded={radius.lg} style={{ alignSelf: 'center', width: '100%', height: 150 }} />
+      <Thumb uri={item.imageUrl} emoji={item.emoji} size={120} emojiSize={72} rounded={radius.lg} style={{ alignSelf: 'center', width: '100%', height: item.imageUrl ? 190 : 150 }} />
       <Text variant="title">{item.name}</Text>
       <Text color="muted">{item.description}</Text>
       <Text variant="heading" color="primary">
         {formatNaira(item.priceKobo)}
       </Text>
+      {groups.map((group) => (
+        <View key={group.id} accessibilityRole="radiogroup" accessibilityLabel={group.name} style={{ gap: spacing.sm }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm }}>
+            <Text variant="bodyMedium" color="heading">
+              {group.name}
+            </Text>
+            <Text variant="small" color="muted">
+              {group.min > 0 ? (group.max === 1 ? 'Required' : `Choose ${group.min}–${group.max}`) : group.max === 1 ? 'Optional' : `Up to ${group.max}`}
+            </Text>
+          </View>
+          {group.options.map((o) => (
+            <OptionRow key={o.id} title={o.name} subtitle={o.priceKobo > 0 ? `+ ${formatNaira(o.priceKobo)}` : 'No extra cost'} selected={picked.includes(o.id)} onPress={() => toggle(group, o.id)} />
+          ))}
+        </View>
+      ))}
       <Input label="Note for the kitchen (optional)" placeholder="e.g. no pepper, extra sauce" value={note} onChangeText={setNote} maxLength={120} />
     </Sheet>
   );
@@ -107,7 +139,7 @@ function PaymentSheetOpen({ value, totalKobo, onClose, onChange }: PaymentSheetP
 
 // ---------------------------------------------------------------- address
 
-/** Pick a place: saved addresses first, or search with Photon. */
+/** Pick a place: saved addresses first, or search the city. */
 type AddressSheetProps = { title: string; onClose: () => void; onSelect: (place: Place) => void };
 
 export function AddressSheet({ visible, ...rest }: AddressSheetProps & { visible: boolean }) {
@@ -149,8 +181,9 @@ export function usePlaceSearch(query: string) {
     const t = setTimeout(() => setDebounced(query.trim()), 350);
     return () => clearTimeout(t);
   }, [query]);
-  // biased towards Kaduna until the app knows the customer's location
-  return useQuery({ queryKey: ['places', debounced], queryFn: ({ signal }) => searchPlaces(debounced, { lat: 10.5264, lng: 7.4388 }, signal), enabled: debounced.length >= 3, staleTime: 300_000 });
+  const cityId = useCity((c) => c.city?.id);
+  // searched on our server, inside the customer's city
+  return useQuery({ queryKey: ['places', cityId, debounced], queryFn: () => api.searchPlaces(debounced), enabled: debounced.length >= 3 && !!cityId, staleTime: 300_000 });
 }
 
 export function PlaceResults({ data, isFetching, isError, onSelect }: { data?: Place[]; isFetching: boolean; isError: boolean; onSelect: (p: Place) => void }) {

@@ -58,7 +58,7 @@ Font: **Outfit** (same as the website). Empty states and onboarding reuse the we
 
 | Area | Screens |
 |---|---|
-| Sign-up & login | Splash · 3 intro slides · **Phone number → SMS code** (the same two steps for sign-up and login) · **Name and email** (new users only) · Location permission |
+| Sign-up & login | Splash · 3 intro slides · **Email → emailed code** (the same two steps for sign-up and login) · **Name and phone number** (new users only) · Location permission |
 | Home | Home · Search (vendors, dishes) · Category list · Notifications |
 | Food | Vendor page · Item options sheet · Cart · Checkout · Payment method sheet · Address picker (map + search) · Order placed |
 | Dispatch | Pickup · Drop-off · Item size and description · Receiver details · Now or schedule · Fare review · Pay · Finding a rider · Tracking with delivery code — see section 5 |
@@ -201,7 +201,7 @@ Each phase ends with something you can open on your phone.
 - *Done when:* you can book a dispatch, watch it delivered, and the order only completes with the right code.
 
 **Phase 5 — Account**
-- Sign-up and login: phone number → SMS code → name and email for new users; returning users skip the last step.
+- Sign-up and login: email → emailed code → name and phone number for new users; returning users skip the last step. (Changed from phone-first on 2026-10-06.)
 - Profile, saved addresses, wallet, notifications list, referral, appearance, support.
 - *Done when:* a new user can go from first launch to a completed order.
 

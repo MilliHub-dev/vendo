@@ -1,3 +1,4 @@
+import { useMutation } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { MapPin, Search } from 'lucide-react-native';
 import { useState } from 'react';
@@ -11,7 +12,7 @@ import { radius, spacing, useTheme } from '@/theme';
 
 const labels = ['Home', 'Office', 'Other'];
 
-/** Add a saved address: find it with Photon, then name it and add a landmark for the rider. */
+/** Add a saved address: find it, then name it and add a landmark for the rider. */
 export default function AddAddressScreen() {
   const { colors } = useTheme();
   const router = useRouter();
@@ -23,6 +24,7 @@ export default function AddAddressScreen() {
   const [custom, setCustom] = useState('');
   const [note, setNote] = useState('');
   const name = label === 'Other' ? custom.trim() : label;
+  const save = useMutation({ mutationFn: () => add(name, { ...place!, note: note.trim() || undefined }) });
 
   if (!place) {
     return (
@@ -43,10 +45,8 @@ export default function AddAddressScreen() {
         <Button
           title="Save address"
           disabled={!name}
-          onPress={() => {
-            add(name, { ...place, note: note.trim() || undefined });
-            router.back();
-          }}
+          loading={save.isPending}
+          onPress={() => save.mutate(undefined, { onSuccess: () => router.back() })}
         />
       }>
       <View style={[styles.place, { backgroundColor: colors.surface, borderColor: colors.line }]}>
@@ -64,6 +64,7 @@ export default function AddAddressScreen() {
       </View>
       {label === 'Other' ? <Input label="Name" placeholder="e.g. Mum’s house" value={custom} onChangeText={setCustom} maxLength={30} /> : null}
       <Input label="Landmark or directions for the rider" placeholder="e.g. blue gate, opposite the mosque" value={note} onChangeText={setNote} multiline maxLength={140} />
+      {save.isError ? <Text color="danger">{save.error.message}</Text> : null}
     </Screen>
   );
 }

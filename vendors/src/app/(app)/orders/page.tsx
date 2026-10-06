@@ -24,6 +24,7 @@ export default function OrdersPage() {
   const now = useNow();
   const openOrder = useUi((s) => s.openOrder);
   const [tab, setTab] = useState<OrderTab>("new");
+  if (orders.isError) return <p className="note note--danger">{orders.error?.message}</p>;
   if (!orders.data) return <Spinner />;
 
   const count = (t: OrderTab) => orders.data.filter((o) => tabOf(o.status) === t).length;

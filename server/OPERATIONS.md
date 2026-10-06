@@ -69,3 +69,12 @@ For rollback, pause affected workers and transfer submission, deploy the previou
 Select 1–100 unique active account IDs, including customers, riders or vendor staff. The title is limited to 120 characters and the body to 1,000. Invalid recipients reject the entire request. The `202` response includes `notification_ids`, `recipients` and `queued_pushes`: these are accepted inbox messages and queued device deliveries, not proof of delivery. An account without a registered device still receives an inbox message. Push-disabled accounts are not queued, and consent/account/device ownership is checked again by the worker before delivery. This endpoint queues only push; it does not send SMS or email.
 
 Retry the same request with the same key to return its original result without duplicating deliveries. Changing recipients or content while reusing the key returns `409`. New messages require a new key. Admin submissions are audited. Configure FCM credentials and registered device tokens, then run the notification worker for delivery. The endpoint supports selected recipients; it does not broadcast automatically to every account.
+
+
+## Live admin portal
+
+The `admin/` client uses the existing trusted backend `admin` role and email OTP. `GET /v1/admin/me` confirms access; new `/v1/admin/portal/overview` and `/v1/admin/portal/data/:resource` provide live, paginated reads. Migration 015 adds audited immutable customer/rider balance adjustments (`POST /v1/admin/balances/adjust`, signed kobo, required reason and idempotency key), store suspension/reinstatement and durable push campaigns. Adjustments preserve held earnings and refuse negative balances; retries cannot duplicate credits.
+
+`POST /v1/admin/broadcasts` takes audience, city_ids, title, body and optional send_at, with Idempotency-Key. Schedules must be 1 minute–90 days ahead; omitted send_at queues on the next notification worker pass. Recipient selection checks active role, service city, registered devices and push consent at send time. The existing delivery worker checks consent again. GET lists campaign status, queued account recipients, provider device acknowledgements and actual inbox reads. POST /:id/cancel only works before queueing. Revoked administrators' pending campaigns are cancelled. Inbox reads do not measure push taps, and queued does not mean delivered.
+
+Deploy API, workers and admin after migrating; configure exact CORS origin and Brevo SMTP in Supabase. See ../admin/README.md for provisioning and deployment limitations.

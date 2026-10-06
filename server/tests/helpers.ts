@@ -81,7 +81,7 @@ export function fixtures() {
   };
   const unused=async():Promise<never>=>{throw new Error('Unused');};
   const dependencies: Dependencies = {
-    vendors:{register:unused,applications:unused,review:unused,withdraw:unused,stores:unused,store:unused,update:unused,orders:unused,order:unused,summary:unused},
+    vendors:{portal:unused,register:unused,applications:unused,review:unused,withdraw:unused,stores:unused,store:unused,update:unused,orders:unused,order:unused,summary:unused},
     media:{upload:unused,get:unused,download:unused},
     chat:{list:unused,send:unused,read:unused},
     operations:{adminOrders:unused,adminOrder:unused,cities:unused,saveCity:unused,riders:unused,reassign:unused,cancel:unused,custody:unused,vendorOrders:unused,vendorMenu:unused,saveMenu:unused,vendorOpen:unused,documents:unused,upload:unused,document:unused,reviewDocument:unused,saveTier:unused,tiers:unused,membership:unused,saveBanner:unused,banners:unused,placements:unused,report:unused,audits:unused,health:unused,heartbeat:unused},

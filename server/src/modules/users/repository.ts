@@ -12,20 +12,34 @@ function result(row: ProfileRow | undefined): Profile {
 export class PostgresProfileRepository implements ProfileRepository {
   constructor(private readonly pool: pg.Pool) {}
 
-  async bootstrap(id: string, phone: string): Promise<Profile> {
+  async bootstrap(id: string, phone: string, verifiedEmail?: string): Promise<Profile> {
     try {
       // DO UPDATE returns the existing row atomically even on concurrent bootstrap.
       // Never derive a role, name or email from client-controlled auth metadata.
       const { rows } = await this.pool.query<ProfileRow>(
-        `INSERT INTO public.profiles (id, phone) VALUES ($1, $2)
-         ON CONFLICT (id) DO UPDATE SET phone = EXCLUDED.phone
-         RETURNING ${columns}`, [id, phone],
+        `INSERT INTO public.profiles (id, phone, email, email_verified) VALUES ($1, $2, $3::text, $3::text IS NOT NULL)
+         ON CONFLICT (id) DO UPDATE SET phone = COALESCE(EXCLUDED.phone, profiles.phone),
+         email = COALESCE(EXCLUDED.email, profiles.email),
+         email_verified = CASE WHEN EXCLUDED.email IS NOT NULL THEN true ELSE profiles.email_verified END
+         RETURNING ${columns}`, [id, phone || null, verifiedEmail ?? null],
       );
       return result(rows[0]);
     } catch (error) {
       if (error instanceof Error && 'code' in error && error.code === '23505') {
         throw new ApiError(409, 'PHONE_CONFLICT', 'Contact support to resolve this account.');
       }
+      throw error;
+    }
+  }
+
+  async setPhone(id: string, phone: string): Promise<Profile> {
+    try {
+      const { rows } = await this.pool.query<ProfileRow>(
+        `UPDATE public.profiles SET phone = $2 WHERE id = $1 AND status = 'active' AND name IS NOT NULL RETURNING ${columns}`, [id, phone]);
+      return result(rows[0]);
+    } catch (error) {
+      if (error instanceof Error && 'code' in error && error.code === '23505')
+        throw new ApiError(409, 'PHONE_CONFLICT', 'This phone number is already associated with an account. Contact support.');
       throw error;
     }
   }

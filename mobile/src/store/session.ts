@@ -2,20 +2,24 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { hydrateMockUser } from '@/api/mock';
+import { api } from '@/api/client';
+import { setAuthLostHandler } from '@/api/http/request';
 import type { User } from '@/api/types';
 
+import { useAddresses } from './addresses';
+import { useCart } from './cart';
+
 /**
- * Who is signed in. Set by the sign-in screens: phone → code → (new users) name + email.
- * TODO(real backend): keep the token in the device keychain (expo-secure-store) instead
- * of AsyncStorage, and drop hydrateMockUser.
+ * Who is signed in. Set by the sign-in screens: email → code → (new users) name + phone.
+ * `token` here only marks "signed in"; the tokens that matter are kept in the device
+ * keychain by src/api/http/tokens.ts.
  */
 type SessionState = {
   token: string | null;
   user: User | null;
-  /** phone verified, profile not completed yet (new users between the code and details steps) */
-  pendingPhone: string | null;
-  setPendingPhone: (phone: string | null) => void;
+  /** email verified, profile not completed yet (new users between the code and details steps) */
+  pendingEmail: string | null;
+  setPendingEmail: (email: string | null) => void;
   setToken: (token: string) => void;
   signIn: (token: string, user: User) => void;
   setUser: (user: User) => void;
@@ -27,19 +31,23 @@ export const useSession = create<SessionState>()(
     (set) => ({
       token: null,
       user: null,
-      pendingPhone: null,
-      setPendingPhone: (pendingPhone) => set({ pendingPhone }),
+      pendingEmail: null,
+      setPendingEmail: (pendingEmail) => set({ pendingEmail }),
       setToken: (token) => set({ token }),
-      signIn: (token, user) => set({ token, user, pendingPhone: null }),
+      signIn: (token, user) => set({ token, user, pendingEmail: null }),
       setUser: (user) => set({ user }),
-      signOut: () => set({ token: null, user: null, pendingPhone: null }),
+      signOut: () => {
+        void api.signOut();
+        useAddresses.getState().clear();
+        useCart.getState().clear();
+        set({ token: null, user: null, pendingEmail: null });
+      },
     }),
     {
       name: 'vendo-session',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: ({ token, user }) => ({ token, user }),
       onRehydrateStorage: () => (state) => {
-        if (state?.user) hydrateMockUser(state.user);
         useSessionReady.setState(true);
       },
     },
@@ -50,3 +58,6 @@ export const useSession = create<SessionState>()(
 export const useSessionReady = create<boolean>()(() => false);
 
 export const useIsSignedIn = () => useSession((s) => !!s.token && !!s.user);
+
+// the server refused to renew the session (signed out elsewhere, or expired): back to the sign-in screens
+setAuthLostHandler(() => useSession.setState({ token: null, user: null, pendingEmail: null }));

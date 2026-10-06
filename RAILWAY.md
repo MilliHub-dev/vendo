@@ -1,6 +1,6 @@
 # Railway deployment
 
-The repo contains deployment files for four public apps and one background worker. Supabase remains the database, authentication and storage provider. Add Railway Redis for the backend's production rate limits. The admin and vendor UIs currently use mock API clients; deploying them does not connect their screens to the live backend.
+The repo contains deployment files for four public apps and one background worker. Supabase remains the database, authentication and storage provider. Add Railway Redis for the backend's production rate limits. Both vendor and admin portals use the live API.
 
 ## Services
 
@@ -43,7 +43,7 @@ The existing migrations were applied previously. New migrations should run throu
 
 For web, set `NEXT_PUBLIC_SITE_URL=https://your-web-domain` before the build. Rebuild after changing it: static SEO metadata embeds the build-time URL. Its Dockerfile declares this public build argument.
 
-Admin and vendors currently export `mockApi` directly. Setting an API mode or URL variable alone will not connect them. Implement their HTTP adapters and token/session handling before treating those portals as production operations interfaces. Never expose FCM private keys, database passwords or Supabase service-role credentials as `NEXT_PUBLIC_*` variables.
+Set admin and vendor `NEXT_PUBLIC_API_URL` at build time (default `https://api.vendoltd.com`). Deploy backend migrations through 015 and the portal endpoints first. Notification workers also process scheduled admin campaigns. Never expose FCM private keys, database passwords or Supabase service-role credentials as `NEXT_PUBLIC_*` variables.
 
 ## Deployment checks
 

@@ -8,7 +8,7 @@
       "developmentClient": true,
       "distribution": "internal",
       "env": {
-        "EXPO_PUBLIC_API_MODE": "mock"
+        "EXPO_PUBLIC_API_URL": "https://api.vendoltd.com"
       }
     },
     "preview": {
@@ -17,13 +17,13 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_MODE": "mock"
+        "EXPO_PUBLIC_API_URL": "https://api.vendoltd.com"
       }
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_MODE": "mock"
+        "EXPO_PUBLIC_API_URL": "https://api.vendoltd.com"
       }
     }
   },

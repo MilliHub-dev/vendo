@@ -2,7 +2,7 @@ import { Stack } from 'expo-router';
 
 import { fonts, useTheme } from '@/theme';
 
-/** Sign-up and login: welcome → phone → code → (new users only) details. */
+/** Sign-up and login: welcome → email → code → (new riders only) name and phone. */
 export default function AuthLayout() {
   const { colors } = useTheme();
   return (

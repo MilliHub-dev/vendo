@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, View } from 'react-native';
 import { useSearch, useVendors } from '@/api/queries';
 import { MenuRow, VendorRow } from '@/components/Tiles';
 import { Chip, Input, Screen, SectionHeader, Text } from '@/components/ui';
-import { useAddToCart } from '@/lib/use-add-to-cart';
+import { needsChoice, useAddToCart } from '@/lib/use-add-to-cart';
 import { spacing, useTheme } from '@/theme';
 
 const suggestions = ['Jollof', 'Suya', 'Masa', 'Zobo', 'Rice', 'Smoothie'];
@@ -67,7 +67,7 @@ export default function SearchScreen() {
           {results.data?.items.length ? <SectionHeader title="Dishes" /> : null}
           {results.data?.items.map((item) => (
             <View key={item.id} style={{ gap: 4 }}>
-              <MenuRow item={item} onPress={() => open(item.vendorId)} onAdd={() => addToCart(item, item.vendorName)} />
+              <MenuRow item={item} onPress={() => open(item.vendorId)} onAdd={() => (needsChoice(item) ? open(item.vendorId) : addToCart(item, item.vendorName))} />
               <Text variant="caption" color="subtle" style={{ marginLeft: spacing.sm }}>
                 from {item.vendorName}
               </Text>

@@ -20,7 +20,8 @@ export default function EarningsScreen() {
   const withdrawals = useWithdrawals();
   const e = earnings.data;
   const max = Math.max(1, ...(e?.days.map((d) => d.earnedKobo) ?? [1]));
-  const canWithdraw = !!e && e.balanceKobo >= e.minWithdrawalKobo;
+  // the minimum is set per city on the server; when the app doesn't know it, the server has the final say
+  const canWithdraw = !!e && e.balanceKobo > 0 && e.balanceKobo >= (e.minWithdrawalKobo ?? 0);
 
   return (
     <Screen safeTop>
@@ -34,9 +35,14 @@ export default function EarningsScreen() {
           {e ? formatNaira(e.balanceKobo) : '—'}
         </Text>
         <Button title="Withdraw" variant="secondary" disabled={!canWithdraw} onPress={() => router.push('/withdraw')} style={{ alignSelf: 'flex-start', borderWidth: 0, marginTop: spacing.sm }} />
-        {e && !canWithdraw ? (
+        {e && !canWithdraw && e.minWithdrawalKobo ? (
           <Text variant="small" style={{ color: 'rgba(255,255,255,0.85)' }}>
             You can withdraw once you have {formatNaira(e.minWithdrawalKobo)} or more.
+          </Text>
+        ) : null}
+        {e?.heldKobo ? (
+          <Text variant="small" style={{ color: 'rgba(255,255,255,0.85)' }}>
+            {formatNaira(e.heldKobo)} more is on hold and will be released when it clears.
           </Text>
         ) : null}
       </View>

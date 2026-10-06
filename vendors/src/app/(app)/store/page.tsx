@@ -4,13 +4,15 @@ import { useState } from "react";
 
 import { useCities, useMe, useStore, useUpdateStore } from "@/api/queries";
 import type { Store } from "@/api/types";
+import { defaultHours } from "@/lib/hours";
 import { HoursEditor } from "@/components/HoursEditor";
 import { ImagePicker } from "@/components/ImagePicker";
 import { Badge, Button, Input, Spinner, Textarea } from "@/components/ui";
-import { storeCategories, SUPPORT_WHATSAPP, tierLabel } from "@/lib/categories";
+import { storeCategories, SUPPORT_WHATSAPP } from "@/lib/categories";
 
 export default function StorePage() {
   const store = useStore();
+  if (store.isError) return <p className="note note--danger">{store.error?.message}</p>;
   if (!store.data) return <Spinner />;
   return <Settings store={store.data} />;
 }
@@ -25,7 +27,9 @@ function Settings({ store }: { store: Store }) {
   const [cuisine, setCuisine] = useState(store.cuisine);
   const [description, setDescription] = useState(store.description);
   const [address, setAddress] = useState(store.address);
-  const [hours, setHours] = useState(store.hours);
+  const [latitude, setLatitude] = useState(String(store.location.lat));
+  const [longitude, setLongitude] = useState(String(store.location.lng));
+  const [hours, setHours] = useState(store.hours.length ? store.hours : defaultHours());
   const [touched, setTouched] = useState(false);
   const errors = { name: name.trim().length < 2 ? "Enter your store name" : null, cuisine: cuisine.trim().length < 2 ? "Describe what you sell" : null, address: address.trim().length < 5 ? "Enter your store address" : null };
   const category = storeCategories.find((c) => c.value === store.category);
@@ -65,13 +69,14 @@ function Settings({ store }: { store: Store }) {
           <Input label="In a few words" maxLength={40} value={cuisine} onChange={(e) => setCuisine(e.target.value)} error={touched ? errors.cuisine : null} />
           <Textarea label="About your store" maxLength={200} value={description} onChange={(e) => setDescription(e.target.value)} />
           <Textarea label="Store address" maxLength={140} value={address} onChange={(e) => setAddress(e.target.value)} error={touched ? errors.address : null} />
+          <div className="grid-2"><Input label="Pickup latitude" value={latitude} onChange={e=>setLatitude(e.target.value)} /><Input label="Pickup longitude" value={longitude} onChange={e=>setLongitude(e.target.value)} /></div>
           {details.isError ? <p className="text-danger">{details.error.message}</p> : null}
           <div className="row" style={{ justifyContent: "flex-end" }}>
             <Button
               loading={details.isPending}
               onClick={() => {
                 setTouched(true);
-                if (!Object.values(errors).some(Boolean)) details.mutate({ name: name.trim(), cuisine: cuisine.trim(), description: description.trim(), address: address.trim() });
+                if (!Object.values(errors).some(Boolean)) details.mutate({ name: name.trim(), cuisine: cuisine.trim(), description: description.trim(), address: address.trim(), location: { lat: Number(latitude), lng: Number(longitude) } });
               }}>
               Save details
             </Button>
@@ -81,8 +86,8 @@ function Settings({ store }: { store: Store }) {
         <section className="card stack-sm">
           <h2 style={{ fontSize: 16 }}>Your plan</h2>
           <div className="wrap">
-            <Badge tone="primary">{tierLabel[store.tier]} plan</Badge>
-            <Badge>{Math.round(store.commissionRate * 100)}% commission</Badge>
+            <Badge tone="primary">{store.tier} plan</Badge>
+            <Badge>{store.commissionRate === null ? "Commission not configured" : `${Math.round(store.commissionRate * 100)}% commission`}</Badge>
             <Badge>
               {category?.emoji} {category?.label}
             </Badge>

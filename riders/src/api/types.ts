@@ -8,13 +8,18 @@ export type LatLng = { lat: number; lng: number };
 export type Place = LatLng & { address: string; note?: string };
 
 export type User = { id: string; name: string; phone: string; email: string };
-export type ProfileDetails = { name: string; email: string };
+/** `phone` is a contact number in +234 format; riders sign in with their email. */
+export type ProfileDetails = { name: string; phone: string };
 export type VerifyCodeResult = { token: string; user: User | null };
 
+/** `pending`: vehicle registered, documents still to add. `under_review`: everything is in and the team is checking it. */
 export type Approval = 'pending' | 'under_review' | 'approved' | 'rejected' | 'suspended';
 export type Presence = 'offline' | 'online' | 'on_trip';
 export type VehicleType = 'motorcycle' | 'bicycle' | 'car';
-export type DocumentKind = 'gov_id' | 'bike_registration' | 'photo';
+/** The server's document kinds. */
+export type DocumentKind = 'identity' | 'license' | 'vehicle';
+/** A file picked on the phone, ready to upload. */
+export type DocumentFile = { base64: string; mime: 'image/jpeg' | 'image/png' | 'application/pdf' };
 export type DocumentStatus = 'missing' | 'submitted' | 'approved' | 'rejected';
 
 export type RiderDocument = { kind: DocumentKind; status: DocumentStatus; note?: string };
@@ -26,10 +31,11 @@ export type Rider = {
   cityId: string;
   vehicleType: VehicleType;
   plateNumber: string;
-  rating: number;
-  totalTrips: number;
+  /** not sent by the server yet */
+  rating?: number;
+  totalTrips?: number;
   /** offers accepted ÷ offers received, 0–1 */
-  acceptanceRate: number;
+  acceptanceRate?: number;
   documents: RiderDocument[];
 };
 
@@ -48,11 +54,12 @@ export type Offer = {
   expiresAt: string;
   /** rider → pickup */
   distanceToPickupM: number;
-  /** pickup → drop-off */
+  /** pickup → drop-off, straight-line */
   tripDistanceM: number;
   pickup: Place;
   dropoff: Place;
-  earningKobo: Kobo;
+  /** what the rider earns; the server doesn't send this on offers yet */
+  earningKobo?: Kobo;
   /** food: vendor name and item count; dispatch: what the package is */
   summary: string;
 };
@@ -64,20 +71,23 @@ export type Job = {
   status: JobStatus;
   pickup: Place;
   dropoff: Place;
-  /** who to hand the order to */
-  contact: { name: string; phone: string };
+  /** who to hand the order to. Food orders don't share the customer's number: use the in-app chat. */
+  contact?: { name: string; phone: string };
   vendorName?: string;
   items?: { name: string; quantity: number }[];
   package?: { size: PackageSize; description: string; fragile: boolean };
-  earningKobo: Kobo;
+  /** known once the delivery is settled; not sent while the job is running */
+  earningKobo?: Kobo;
   tripDistanceM: number;
   /** dispatch: the receiver's code must be entered to complete the delivery */
   requiresCode: boolean;
-  codeAttemptsLeft: number;
+  /** not sent by the server; it locks the delivery after too many wrong codes */
+  codeAttemptsLeft?: number;
   acceptedAt: string;
 };
 
-export type Trip = { id: string; code: string; type: OrderType; title: string; pickup: string; dropoff: string; earningKobo: Kobo; distanceM: number; completedAt: string };
+/** A completed, paid delivery. The server's earnings history gives the amount and time; route details aren't included yet. */
+export type Trip = { id: string; code: string; type?: OrderType; title: string; pickup?: string; dropoff?: string; earningKobo: Kobo; distanceM?: number; completedAt: string };
 
 export type Earnings = {
   balanceKobo: Kobo;
@@ -85,12 +95,18 @@ export type Earnings = {
   week: { trips: number; earnedKobo: Kobo };
   /** last 7 days, oldest first */
   days: { date: string; earnedKobo: Kobo }[];
-  minWithdrawalKobo: Kobo;
+  /** set per city on the server and enforced there; not sent to the app yet */
+  minWithdrawalKobo?: Kobo;
+  /** money held back (e.g. during a dispute) */
+  heldKobo?: Kobo;
 };
 
 export type WithdrawalStatus = 'pending' | 'completed' | 'failed';
-export type Withdrawal = { id: string; amountKobo: Kobo; bankName: string; accountNumber: string; status: WithdrawalStatus; createdAt: string };
-export type WithdrawalRequest = { amountKobo: Kobo; bankCode: string; accountNumber: string; accountName: string };
+export type Withdrawal = { id: string; amountKobo: Kobo; bankName: string; accountNumber: string; status: WithdrawalStatus; createdAt: string; note?: string };
+/** The rider's saved payout account (account number masked). */
+export type PayoutAccount = { bankCode: string; bankName: string; lastFour: string; accountName: string };
+/** `bankCode` + `accountNumber` are sent when the payout account is new or being changed; the server confirms the account name with the bank. */
+export type WithdrawalRequest = { amountKobo: Kobo; bankCode?: string; accountNumber?: string };
 export type Bank = { code: string; name: string };
 
 export type ChatMessage = { id: string; from: 'rider' | 'customer'; text: string; createdAt: string };

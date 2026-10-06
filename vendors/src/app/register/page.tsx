@@ -4,7 +4,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { CircleCheck, Clock, LogOut } from "lucide-react";
 import { useState } from "react";
 
-import { defaultHours } from "@/api/mock";
+import { api } from "@/api/client";
+import { defaultHours } from "@/lib/hours";
 import { useCities, useRegisterStore, useStore } from "@/api/queries";
 import type { DayHours, Store, StoreCategory } from "@/api/types";
 import { useGate, useStoreSync } from "@/components/AppShell";
@@ -32,11 +33,17 @@ export default function RegisterPage() {
   const [description, setDescription] = useState("");
   const [cityId, setCityId] = useState("");
   const [address, setAddress] = useState("");
+  const [latitude, setLatitude] = useState("");
+  const [longitude, setLongitude] = useState("");
+  const locationValid = latitude.trim() !== "" && longitude.trim() !== "" && Number.isFinite(Number(latitude)) && Math.abs(Number(latitude)) <= 90 && Number.isFinite(Number(longitude)) && Math.abs(Number(longitude)) <= 180;
   const [hours, setHours] = useState<DayHours[]>(defaultHours);
+  const [reapplying, setReapplying] = useState(false);
   const [touched, setTouched] = useState(false);
 
+  if (store.isError) return <p className="note note--danger">{store.error.message}</p>;
   if (!ok || store.isPending) return <Spinner />;
-  const shown = store.data ? 3 : step;
+  const reviewing = store.data && !reapplying;
+  const shown = reviewing ? 3 : step;
 
   const next = () => {
     setTouched(true);
@@ -47,7 +54,7 @@ export default function RegisterPage() {
   };
   const submit = () => {
     setTouched(true);
-    if (cityId && address.trim().length >= 5 && hours.some((d) => d.open)) register.mutate({ name, category, cuisine: cuisine.trim(), description: description.trim(), cityId, address, hours });
+    if (cityId && address.trim().length >= 5 && locationValid && hours.some((d) => d.open)) register.mutate({ name, category, cuisine: cuisine.trim(), description: description.trim(), cityId, address, hours, location: { lat: Number(latitude), lng: Number(longitude) } }, {onSuccess:()=>setReapplying(false)});
   };
 
   return (
@@ -66,6 +73,7 @@ export default function RegisterPage() {
             title="Log out"
             onClick={() => {
               queryClient.clear();
+              void api.logout().catch(() => {});
               signOut();
             }}>
             <LogOut />
@@ -81,8 +89,8 @@ export default function RegisterPage() {
         </div>
       </div>
 
-      {store.data ? (
-        <Review store={store.data} city={cities.data?.find((c) => c.id === store.data!.cityId)?.name} />
+      {reviewing && store.data ? (
+        <><Review store={store.data} city={cities.data?.find((c) => c.id === store.data!.cityId)?.name} />{store.data.approval === "rejected" ? <Button onClick={()=>setReapplying(true)}>Submit a new application</Button> : null}</>
       ) : step === 1 ? (
         <div className="card stack">
           <div>
@@ -124,6 +132,11 @@ export default function RegisterPage() {
             {touched && !cityId ? <span className="field__error">Choose your city</span> : null}
           </div>
           <Textarea label="Store address" placeholder="Street, area and a nearby landmark" maxLength={140} value={address} onChange={(e) => setAddress(e.target.value)} error={touched && address.trim().length < 5 ? "Enter your store address" : null} />
+          <div className="grid-2"><Input label="Store latitude" value={latitude} onChange={e=>setLatitude(e.target.value)} inputMode="decimal" /><Input label="Store longitude" value={longitude} onChange={e=>setLongitude(e.target.value)} inputMode="decimal" /></div>
+          <Button variant="secondary" onClick={()=>navigator.geolocation.getCurrentPosition(p=>{setLatitude(String(p.coords.latitude));setLongitude(String(p.coords.longitude));},()=>alert('Location unavailable. Enter the coordinates of your store.'))}>Use my current location</Button>
+          <p className="small muted">Use your store’s exact pickup location, inside the selected service city.</p>
+          {touched && !locationValid ? <p className="text-danger">Enter valid store coordinates.</p> : null}
+          {cities.isError ? <p className="text-danger">{cities.error.message}</p> : null}
           <div className="field">
             <span className="label">Opening hours</span>
             <HoursEditor value={hours} onChange={setHours} />

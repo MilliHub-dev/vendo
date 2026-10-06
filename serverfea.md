@@ -11,8 +11,8 @@
 | **Promo codes** | Server-priced Food Court/Dispatch discounts, campaign dates and scopes, city/vendor restrictions, usage limits, checkout revalidation |
 | **Customer extras** | Dark mode, referrals, notification preferences, support, legal pages |
 | **Rider app** | Registration, document uploads, approval, online/offline status, accept/reject jobs, pickup/delivery updates, navigation, delivery-code entry, earnings and withdrawals |
-| **Vendor operations** | Self-service registration, admin approval/rejection, dedicated vendor portal APIs, vendor/menu management, item availability, accept/reject orders, ready-for-pickup status, commissions, membership tiers and payouts |
-| **Admin dashboard** | Order management, rider approvals/suspensions, live rider map, reassignment, refunds, disputes, withdrawal approvals, vendor management, city pricing/hours/boundaries |
+| **Vendor operations** | Live vendor webapp, email OTP sessions, self-service registration and admin review, store selection, logo/banner/menu uploads, weekly opening hours, menu availability, order preparation/rejection/ready actions, reviews and sales reporting, configured commissions, membership tiers and withdrawal requests |
+| **Admin dashboard** | Live API webapp, verified admin email login, order/timeline management, actual rider GPS and document review, reassignment, refund reconciliation, disputes, audited customer/rider balance adjustments, withdrawal review, vendor applications/store/menu/membership management, city pricing/hours/boundaries/policies, scheduled push campaigns, support tickets and audit history |
 | **Growth & reporting** | Referrals, promotional banners, vendor placement, configurable surge pricing, ratings/reviews, order/payment/rider/city analytics |
 | **Marketing website** | Service pages, WhatsApp booking, rider/vendor/bike-owner applications, contact, careers, app download placeholders, SEO, dark mode |
 | **Backend infrastructure** | Typed API/OpenAPI, database migrations, access controls, rate limits, audit trails, Supabase Storage for logos/images/private documents, background jobs, monitoring, backups and recovery |

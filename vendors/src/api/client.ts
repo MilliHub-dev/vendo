@@ -1,12 +1,5 @@
-/**
- * The one door between screens and the backend. Screens use the hooks in ./queries.
- * The mock is used for now (UI-first build); add ./http implementing this interface
- * against server/ and switch with EXPO_PUBLIC_API_MODE=http.
- */
-import { mockApi } from './mock';
 import type {
   AppNotification,
-  Bank,
   BankAccount,
   City,
   Dashboard,
@@ -25,9 +18,9 @@ import type {
 } from './types';
 
 export interface ApiClient {
-  // sign-up / login — the same phone → code → name + email flow as the other apps
-  requestCode(phone: string): Promise<void>;
-  verifyCode(phone: string, code: string): Promise<VerifyCodeResult>;
+  // sign-up / login — the email → code → name + phone flow
+  requestCode(email: string): Promise<void>;
+  verifyCode(email: string, code: string): Promise<VerifyCodeResult>;
   completeSignUp(details: ProfileDetails): Promise<User>;
   getMe(): Promise<User>;
 
@@ -35,13 +28,13 @@ export interface ApiClient {
   listCities(): Promise<City[]>;
   /** null until the vendor has registered a store */
   getStore(): Promise<Store | null>;
-  /** TODO(server): vendors are currently created by an admin; self-registration needs an endpoint. */
+  listStores(): Promise<Store[]>;
   registerStore(body: RegisterStoreRequest): Promise<Store>;
   updateStore(body: StoreUpdate): Promise<Store>;
   setOpen(open: boolean): Promise<Store>;
   /**
    * Uploads a picture and returns its URL, to save with updateStore or saveMenuItem.
-   * JPEG, PNG or WebP up to 5 MB. Real backend: stores the file (Supabase Storage) and returns a public URL.
+   * JPEG, PNG or WebP up to 2 MiB. Real backend: stores the file (Supabase Storage) and returns a public URL.
    */
   uploadImage(file: Blob, kind: ImageKind): Promise<string>;
 
@@ -61,12 +54,11 @@ export interface ApiClient {
   // business
   getDashboard(): Promise<Dashboard>;
   getPayouts(): Promise<Payouts>;
-  listBanks(): Promise<Bank[]>;
+  logout(): Promise<void>;
+  requestWithdrawal(amountKobo: number): Promise<void>;
   saveBankAccount(account: Omit<BankAccount, 'bankName'>): Promise<Payouts>;
   listReviews(): Promise<Review[]>;
   listNotifications(): Promise<AppNotification[]>;
 }
 
-export const apiMode = process.env.EXPO_PUBLIC_API_MODE === 'http' ? 'http' : 'mock';
-
-export const api: ApiClient = mockApi;
+export { api } from './http';

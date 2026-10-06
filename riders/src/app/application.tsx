@@ -1,11 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
-import { Bike, Camera, Car, CircleCheck, Clock, FileText, IdCard, LogOut, type LucideIcon } from 'lucide-react-native';
+import { Bike, Car, CircleCheck, Clock, FileText, IdCard, LogOut, ScrollText, type LucideIcon } from 'lucide-react-native';
 import { useState } from 'react';
 import { ActivityIndicator, Linking, Pressable, StyleSheet, View } from 'react-native';
 
-import { useCities, useRegisterRider, useRider, useSubmitApplication, useUploadDocument } from '@/api/queries';
+import { useCities, useRegisterRider, useRider, useUploadDocument } from '@/api/queries';
 import type { DocumentKind, Rider, VehicleType } from '@/api/types';
 import { Badge, Button, Card, Chip, Input, OptionRow, Screen, Text } from '@/components/ui';
+import { pickDocument } from '@/lib/pick-document';
 import { confirm } from '@/store/confirm';
 import { useSession } from '@/store/session';
 import { radius, spacing, useTheme } from '@/theme';
@@ -13,10 +14,30 @@ import { radius, spacing, useTheme } from '@/theme';
 export const SUPPORT_WHATSAPP = 'https://wa.me/2348144461726';
 
 export const documentInfo: Record<DocumentKind, { title: string; hint: string; icon: LucideIcon }> = {
-  gov_id: { title: 'Government ID', hint: 'NIN slip, driver’s licence, voter’s card or passport', icon: IdCard },
-  bike_registration: { title: 'Vehicle registration', hint: 'The papers for the vehicle you’ll ride', icon: FileText },
-  photo: { title: 'Profile photo', hint: 'A clear photo of your face, no cap or sunglasses', icon: Camera },
+  identity: { title: 'Government ID', hint: 'NIN slip, voter’s card or passport', icon: IdCard },
+  license: { title: 'Rider’s licence', hint: 'Your valid licence for the vehicle you’ll ride', icon: ScrollText },
+  vehicle: { title: 'Vehicle papers', hint: 'Registration or proof of ownership for your vehicle', icon: FileText },
 };
+
+/** Photographs or picks a document and uploads it. Shared by the application and the Vehicle & documents screen. */
+export function useDocumentUpload() {
+  const upload = useUploadDocument();
+  const [kind, setKind] = useState<DocumentKind | null>(null);
+  const [pickError, setPickError] = useState<string | null>(null);
+  const start = async (k: DocumentKind) => {
+    setPickError(null);
+    upload.reset();
+    try {
+      const file = await pickDocument(documentInfo[k].title);
+      if (!file) return;
+      setKind(k);
+      upload.mutate({ kind: k, file }, { onSettled: () => setKind(null) });
+    } catch (e) {
+      setPickError(e instanceof Error ? e.message : 'We couldn’t open that photo.');
+    }
+  };
+  return { start, busyKind: upload.isPending ? kind : null, busy: upload.isPending, error: pickError ?? (upload.isError ? upload.error.message : null) };
+}
 
 /** The rider application, one step at a time: vehicle → documents → review. Shown until the rider is approved. */
 export default function ApplicationScreen() {
@@ -56,7 +77,7 @@ function LogoutLink() {
       onPress={() =>
         confirm({
           title: 'Log out?',
-          message: 'Your application is saved. Sign in again with the same phone number to continue.',
+          message: 'Your application is saved. Sign in again with the same email address to continue.',
           confirmLabel: 'Log out',
           cancelLabel: 'Stay',
           destructive: true,
@@ -138,36 +159,34 @@ function VehicleStep() {
 
 function DocumentsStep({ rider }: { rider: Rider }) {
   const { colors } = useTheme();
-  const upload = useUploadDocument();
-  const submit = useSubmitApplication();
-  const ready = rider.documents.every((d) => d.status === 'submitted' || d.status === 'approved');
+  const upload = useDocumentUpload();
 
   return (
     <>
       <View style={{ gap: spacing.xs }}>
         <Text variant="display">Your documents</Text>
-        <Text color="muted">Only the Vendo team sees these. Take clear photos in good light.</Text>
+        <Text color="muted">Only the Vendo team sees these. Take clear photos in good light. Your application is sent for review as soon as all three are added.</Text>
       </View>
       {rider.approval === 'rejected' ? (
         <Card style={{ borderColor: colors.danger }}>
           <Text variant="bodyMedium" color="danger">
             We couldn’t approve your application
           </Text>
-          <Text color="muted">{rider.approvalNote ?? 'Please re-upload the documents marked below and submit again.'}</Text>
+          <Text color="muted">{rider.approvalNote ?? 'Please re-upload the documents marked below.'}</Text>
         </Card>
       ) : null}
 
       {rider.documents.map((doc) => {
         const info = documentInfo[doc.kind];
         const done = doc.status === 'submitted' || doc.status === 'approved';
-        const busy = upload.isPending && upload.variables === doc.kind;
+        const busy = upload.busyKind === doc.kind;
         return (
           <Pressable
             key={doc.kind}
             accessibilityRole="button"
             accessibilityLabel={`${info.title}, ${done ? 'added' : 'not added yet'}`}
-            disabled={upload.isPending}
-            onPress={() => upload.mutate(doc.kind)}
+            disabled={upload.busy}
+            onPress={() => void upload.start(doc.kind)}
             style={[styles.doc, { backgroundColor: colors.surface, borderColor: doc.status === 'rejected' ? colors.danger : done ? colors.primary : colors.line }]}>
             <View style={[styles.icon, { backgroundColor: colors.primarySoft }]}>
               <info.icon size={18} color={colors.primary} />
@@ -184,8 +203,7 @@ function DocumentsStep({ rider }: { rider: Rider }) {
           </Pressable>
         );
       })}
-      {submit.isError ? <Text color="danger">{submit.error.message}</Text> : null}
-      <Button title="Submit application" disabled={!ready} loading={submit.isPending} onPress={() => submit.mutate()} />
+      {upload.error ? <Text color="danger">{upload.error}</Text> : null}
       <Text variant="small" color="subtle" center>
         Tap a document to add it. You can replace it by tapping again.
       </Text>
@@ -213,7 +231,7 @@ function ReviewStep({ rider }: { rider: Rider }) {
         We’re reviewing your application
       </Text>
       <Text color="muted" center>
-        The Vendo team is checking your documents. You’ll get a notification and an SMS as soon as you’re approved — this screen updates by itself.
+        The Vendo team is checking your documents. You’ll get a notification and an email as soon as you’re approved — this screen updates by itself.
       </Text>
       <Card>
         {[

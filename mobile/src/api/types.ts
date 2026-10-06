@@ -24,7 +24,8 @@ export type VendorCategory = 'restaurant' | 'fast_food' | 'drinks' | 'groceries'
 
 export type LatLng = { lat: number; lng: number };
 
-export type City = { id: string; name: string; isActive: boolean };
+/** `isOpen` is false outside the city's delivery hours. */
+export type City = { id: string; name: string; isActive: boolean; isOpen?: boolean };
 
 export type Place = LatLng & {
   /** street / area line found for the pin */
@@ -45,12 +46,13 @@ export type User = {
 };
 
 /**
- * Sign-up and login are one flow: phone number → SMS code.
- * A number we already know is signed in straight away (`user` is set).
- * A new number gets `user: null` and continues to the name + email step.
+ * Sign-up and login are one flow: email address → emailed code.
+ * An account we already know is signed in straight away (`user` is set).
+ * A new email gets `user: null` and continues to the name + phone step.
  */
 export type VerifyCodeResult = { token: string; user: User | null };
-export type ProfileDetails = { name: string; email: string };
+/** `phone` is a contact number in +234 format (riders call it; it isn't used to sign in). */
+export type ProfileDetails = { name: string; phone: string };
 export type SignUpDetails = ProfileDetails & { referralCode?: string };
 
 export type Vendor = {
@@ -63,13 +65,18 @@ export type Vendor = {
   location: LatLng;
   isOpen: boolean;
   rating: number;
-  ratingCount: number;
+  /** not sent by the live API yet */
+  ratingCount?: number;
   etaMinutes: [min: number, max: number];
-  deliveryFeeKobo: Kobo;
+  /** only known once there is a delivery address; the live API prices it at checkout */
+  deliveryFeeKobo?: Kobo;
   imageUrl?: string;
   /** placeholder art until vendors supply photos */
   emoji?: string;
 };
+
+/** A choice the customer makes on an item, e.g. "Choose your protein" (pick `min`–`max` options). */
+export type OptionGroup = { id: string; name: string; min: number; max: number; options: { id: string; name: string; priceKobo: Kobo }[] };
 
 export type MenuItem = {
   id: string;
@@ -81,6 +88,7 @@ export type MenuItem = {
   isAvailable: boolean;
   imageUrl?: string;
   emoji?: string;
+  optionGroups?: OptionGroup[];
 };
 
 export type MenuItemWithVendor = MenuItem & { vendorName: string };
@@ -88,9 +96,9 @@ export type SearchResults = { vendors: Vendor[]; items: MenuItemWithVendor[] };
 
 export type VendorDetail = { vendor: Vendor; menu: MenuItem[] };
 
-export type OrderItem = { menuItemId: string; name: string; unitPriceKobo: Kobo; quantity: number; note?: string };
+export type OrderItem = { menuItemId: string; name: string; unitPriceKobo: Kobo; quantity: number; note?: string; /** chosen options, e.g. "Chicken, Large" */ options?: string };
 
-export type Rider = { id: string; name: string; phone: string; rating: number; plateNumber: string; photoUrl?: string };
+export type Rider = { id: string; name: string; phone: string; rating?: number; plateNumber: string; photoUrl?: string };
 
 export type Order = {
   id: string;
@@ -112,6 +120,8 @@ export type Order = {
   discountKobo: Kobo;
   totalKobo: Kobo;
   paymentMethod: PaymentMethod;
+  /** false while the customer still has to pay (status is then `pending_payment`) */
+  isPaid?: boolean;
   rider?: Rider;
   /** dispatch only: shown to the sender, entered by the rider at handover */
   deliveryCode?: string;
@@ -119,10 +129,15 @@ export type Order = {
   rating?: number;
 };
 
-/** A promo code the server has accepted. */
+/** `feeKobo` is charged if the customer cancels now; `refundKobo` goes back to them. */
+export type CancellationTerms = { canCancel: boolean; feeKobo: Kobo; refundKobo: Kobo; reason?: string };
+
+/** A promo code to try at checkout. */
 export type Promo = { code: string; description: string };
 
 export type Quote = {
+  /** the server's quote ID; an order is placed against it */
+  id?: string;
   /** why there is a discount, e.g. "Promo VENDO10" or "Referral welcome discount" */
   discountLabel?: string;
   distanceMeters: number;
@@ -139,7 +154,7 @@ export type WalletTransaction = {
   id: string;
   direction: 'credit' | 'debit';
   amountKobo: Kobo;
-  purpose: 'topup' | 'order_payment' | 'refund';
+  purpose: 'topup' | 'order_payment' | 'refund' | 'referral';
   label: string;
   reference: string;
   createdAt: string;
@@ -155,6 +170,9 @@ export type ReferralSummary = {
   /** discount a new customer gets on their first order */
   refereeDiscountKobo: Kobo;
   earnedKobo: Kobo;
+  /** friends who joined but haven't ordered yet / who have earned you a reward (the live API sends counts, not names) */
+  pendingCount?: number;
+  rewardedCount?: number;
   /** the code this customer signed up with, if any */
   appliedCode: string | null;
   /** a code can be added only before the first order */
@@ -172,12 +190,7 @@ export type AppNotification = { id: string; title: string; body: string; created
 // ---- request bodies ----
 
 export type QuoteRequest =
-  | { type: 'food'; vendorId: string; items: { menuItemId: string; quantity: number }[]; dropoff: Place; promoCode?: string }
-  | { type: 'dispatch'; pickup: Place; dropoff: Place; packageSize: PackageSize };
+  | { type: 'food'; vendorId: string; items: { menuItemId: string; quantity: number; optionIds?: string[]; note?: string }[]; dropoff: Place; promoCode?: string }
+  | { type: 'dispatch'; pickup: Place; dropoff: Place; packageSize: PackageSize; packageNote?: string; fragile?: boolean; receiver?: { name: string; phone: string } };
 
-export type CreateOrderRequest = QuoteRequest & {
-  paymentMethod: PaymentMethod;
-  scheduledFor?: string;
-  packageNote?: string;
-  receiver?: { name: string; phone: string };
-};
+export type CreateOrderRequest = QuoteRequest & { paymentMethod: PaymentMethod; scheduledFor?: string };

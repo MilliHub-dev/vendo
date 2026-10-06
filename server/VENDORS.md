@@ -89,3 +89,21 @@ Register the browser's FCM device token with `platform: "web"` using `/v1/me/dev
 Add the exact vendor webapp HTTPS origin to `CORS_ORIGINS`; never enable wildcard origins. Reuse existing phone OTP/session recovery and refresh handling. The frontend should display application status until approved, then load stores and choose a store ID for all management calls. Do not trust a cached client role as authorization; `/me` and portal endpoints reflect current permissions without requiring role-bearing custom JWT claims.
 
 Before account deletion, pending applications must be withdrawn/resolved. The last active vendor account must arrange store handover/closure with operations, including unsettled earnings. Account deactivation requests are serialized to avoid simultaneous last-staff departures. Production tests with real database connections, provider/device acceptance, licensing/legal checks and full webapp journeys remain pending.
+
+
+## Live vendor portal
+
+The `vendors/` webapp now uses `https://api.vendoltd.com` (override `NEXT_PUBLIC_API_URL` at build time). Apply `202610060013_vendor_portal.sql` and deploy the updated API before the portal. Add the vendor web origin to `CORS_ORIGINS`.
+
+The migration adds weekly `opening_hours` to stores and optional per-order preparation minutes/rejection reasons. Registration accepts `opening_hours`; store PATCH can edit them. Seven unique weekdays (0 Sunday through 6 Saturday), boolean `open`, and 24-hour `from`/`to` values are required. Overnight schedules are supported, using Africa/Lagos time; existing empty schedules preserve previous behavior. Checkout rechecks store hours, so a quote made before closing cannot bypass the schedule.
+
+`GET /v1/vendor/stores/:id/portal` returns scoped reviews (latest 100), total rating count, current configured commission/tier and reporting totals. Seven-day sales count delivered orders by Nigerian delivery date. Today's payout total reflects posted earnings ledger entries, not a promise that all sales have settled. Missing finance policies return an unknown commission rather than inventing a rate.
+
+Order list/detail include the configured response deadline and the order's snapshotted commission when available. Vendor action accepts `prep_minutes` (1–180) for acceptance and a `reason` (up to 500 characters) for rejection. Preparation is an estimate; rider assignment does not wait until that estimate expires. The portal preserves existing menu option groups when editing items; removing an item makes it unavailable. Actual bank verification, withdrawal approval, settlement configuration, SMS credentials and worker delivery remain required for their respective live actions.
+
+
+## Email sign-in
+
+Vendor portal uses POST /v1/auth/email/otp/request {email} and POST /v1/auth/email/otp/verify {email,token}. PATCH /v1/me/name then PATCH /v1/me/phone {phone} completes onboarding. Contact phone is not proof of phone ownership. Existing phone authentication endpoints remain available for other apps; matching contact information never automatically merges accounts.
+
+Apply migration 014 and redeploy server and vendors. In Supabase Auth, enable Email, configure custom SMTP with Brevo SMTP credentials (SMTP key, not HTTP API key), and change the Magic Link email template to display {{ .Token }} with six-digit OTP length. Configure sender/domain in Brevo. BREVO_API_KEY alone does not configure authentication email delivery. Existing phone-only accounts require verified email linking to the same Supabase identity before email login; a matching profile email alone does not link accounts.

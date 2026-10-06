@@ -1,3 +1,4 @@
+import { AdminBroadcasts } from '../admin-portal/broadcasts.js';
 import { createHash } from 'node:crypto';
 import type pg from 'pg';
 import { ApiError } from '../../lib/errors.js';
@@ -8,6 +9,7 @@ import type { z } from 'zod';
 const serialize = (row: Record<string, unknown>) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, v instanceof Date ? v.toISOString() : v]));
 export class PostgresNotificationRepository implements NotificationRepository {
     constructor(private readonly pool: pg.Pool) { }
+    async processBroadcasts(limit: number) { return new AdminBroadcasts(this.pool).process(limit); }
     async sendAdminPush(admin: string, input: z.infer<typeof adminPushInput>, key: string) {
         return this.transaction(async c => {
             await actor(c, admin, 'admin');

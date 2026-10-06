@@ -12,7 +12,7 @@ export function VendorTile({ vendor, onPress, width = 210 }: { vendor: Vendor; o
   const { colors } = useTheme();
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`${vendor.name}, ${vendor.cuisine}`} onPress={onPress} style={({ pressed }) => [styles.tile, shadows.card, { width, backgroundColor: colors.surface }, pressed && { opacity: 0.9 }]}>
-      <Thumb emoji={vendor.emoji} size={width} emojiSize={58} rounded={0} style={{ height: 112 }} />
+      <Thumb uri={vendor.imageUrl} emoji={vendor.emoji} size={width} emojiSize={58} rounded={0} style={{ height: 112 }} />
       {!vendor.isOpen && (
         <View style={styles.closed}>
           <Badge label="Closed" tone="muted" />
@@ -23,9 +23,11 @@ export function VendorTile({ vendor, onPress, width = 210 }: { vendor: Vendor; o
           <Text variant="bodyMedium" color="heading" numberOfLines={1} style={{ flex: 1 }}>
             {vendor.name}
           </Text>
-          <Text variant="smallMedium" color="primary">
-            {formatNaira(vendor.deliveryFeeKobo)}
-          </Text>
+          {vendor.deliveryFeeKobo !== undefined ? (
+            <Text variant="smallMedium" color="primary">
+              {formatNaira(vendor.deliveryFeeKobo)}
+            </Text>
+          ) : null}
         </View>
         <Text variant="small" color="muted" numberOfLines={1}>
           {vendor.cuisine}
@@ -59,7 +61,7 @@ export function VendorRow({ vendor, onPress }: { vendor: Vendor; onPress: () => 
   const { colors } = useTheme();
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`${vendor.name}, ${vendor.cuisine}`} onPress={onPress} style={({ pressed }) => [styles.row, { backgroundColor: colors.surface, borderColor: colors.line }, pressed && { opacity: 0.85 }]}>
-      <Thumb emoji={vendor.emoji} size={64} />
+      <Thumb uri={vendor.imageUrl} emoji={vendor.emoji} size={64} />
       <View style={{ flex: 1, gap: 2 }}>
         <View style={styles.rowBetween}>
           <Text variant="bodyMedium" color="heading" numberOfLines={1} style={{ flexShrink: 1 }}>
@@ -73,10 +75,12 @@ export function VendorRow({ vendor, onPress }: { vendor: Vendor; onPress: () => 
         <View style={styles.meta}>
           <Star size={13} color={colors.warning} fill={colors.warning} />
           <Text variant="caption" color="heading">
-            {vendor.rating.toFixed(1)} ({vendor.ratingCount})
+            {vendor.rating.toFixed(1)}
+            {vendor.ratingCount !== undefined ? ` (${vendor.ratingCount})` : ''}
           </Text>
           <Text variant="caption" color="muted">
-            · {vendor.etaMinutes[0]}–{vendor.etaMinutes[1]} min · {formatNaira(vendor.deliveryFeeKobo)}
+            · {vendor.etaMinutes[0]}–{vendor.etaMinutes[1]} min
+            {vendor.deliveryFeeKobo !== undefined ? ` · ${formatNaira(vendor.deliveryFeeKobo)}` : ''}
           </Text>
         </View>
       </View>
@@ -89,7 +93,7 @@ export function ItemTile({ item, vendorName, onPress, onAdd }: { item: MenuItem;
   const { colors } = useTheme();
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`${item.name} from ${vendorName}, ${formatNaira(item.priceKobo)}`} onPress={onPress} style={({ pressed }) => [styles.tile, shadows.card, { width: 164, backgroundColor: colors.surface }, pressed && { opacity: 0.9 }]}>
-      <Thumb emoji={item.emoji} size={164} emojiSize={54} rounded={0} style={{ height: 104 }} />
+      <Thumb uri={item.imageUrl} emoji={item.emoji} size={164} emojiSize={54} rounded={0} style={{ height: 104 }} />
       <View style={styles.tileBody}>
         <Text variant="smallMedium" color="heading" numberOfLines={1}>
           {item.name}
@@ -116,7 +120,7 @@ export function MenuRow({ item, disabled, onPress, onAdd }: { item: MenuItem; di
   const off = disabled || !item.isAvailable;
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`${item.name}, ${formatNaira(item.priceKobo)}`} onPress={onPress} disabled={off} style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.line }, off && { opacity: 0.55 }]}>
-      <Thumb emoji={item.emoji} size={84} />
+      <Thumb uri={item.imageUrl} emoji={item.emoji} size={84} />
       <View style={{ flex: 1, gap: 2 }}>
         <Text variant="bodyMedium" color="heading">
           {item.name}

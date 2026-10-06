@@ -9,7 +9,7 @@ import { radius, spacing, useTheme } from '@/theme';
 
 const points: { icon: LucideIcon; text: string }[] = [
   { icon: Clock, text: 'Go online when it suits you' },
-  { icon: Banknote, text: 'See what you’ll earn before you accept' },
+  { icon: Banknote, text: 'See the pickup and drop-off before you accept' },
   { icon: ShieldCheck, text: 'Withdraw to any Nigerian bank' },
 ];
 
@@ -45,7 +45,7 @@ export default function WelcomeScreen() {
           ))}
         </View>
       </View>
-      <Button title="Get started" onPress={() => router.push('/phone')} />
+      <Button title="Get started" onPress={() => router.push('/email')} />
     </View>
   );
 }

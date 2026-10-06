@@ -3,14 +3,14 @@ import { Bike, House, MessageCircle, Navigation, PackageCheck, Phone, Share2, St
 import { useState } from 'react';
 import { ActivityIndicator, Linking, Share, StyleSheet, View } from 'react-native';
 
-import { useCancelOrder, useMessages, useOrder, useRateOrder, useTracking } from '@/api/queries';
+import { useMessages, useOrder, useRateOrder, useTracking } from '@/api/queries';
 import { RouteMap } from '@/components/RouteMap';
 import { RatingSheet } from '@/components/sheets';
 import { Button, Card, IconButton, Screen, Text } from '@/components/ui';
 import { distanceMeters, formatDistance } from '@/lib/geo';
 import { canCancel, canChat, statusLabel, trackingProgress, trackingSteps } from '@/lib/order-status';
 import { useChatSeen } from '@/store/chat';
-import { confirm } from '@/store/confirm';
+import { useCancelFlow } from '@/lib/use-cancel-order';
 import { radius, spacing, useTheme } from '@/theme';
 
 const stepIcons = [Bike, PackageCheck, Navigation, House];
@@ -32,7 +32,7 @@ export default function TrackOrderScreen() {
   const router = useRouter();
   const { data: order, isPending } = useOrder(id);
   const { data: tracking } = useTracking(id);
-  const cancel = useCancelOrder();
+  const cancelling = useCancelFlow(order);
   const rate = useRateOrder();
   const [rating, setRating] = useState(false);
   const chat = useMessages(id, !!order?.rider && canChat(order.status));
@@ -131,10 +131,14 @@ export default function TrackOrderScreen() {
               <Text variant="bodyMedium" color="heading">
                 {rider.name}
               </Text>
-              <Star size={13} color={colors.warning} fill={colors.warning} />
-              <Text variant="small" color="heading">
-                {rider.rating.toFixed(1)}
-              </Text>
+              {rider.rating ? (
+                <>
+                  <Star size={13} color={colors.warning} fill={colors.warning} />
+                  <Text variant="small" color="heading">
+                    {rider.rating.toFixed(1)}
+                  </Text>
+                </>
+              ) : null}
             </View>
             <Text variant="small" color="muted">
               Your rider · {rider.plateNumber}
@@ -165,24 +169,8 @@ export default function TrackOrderScreen() {
 
       {status === 'delivered' && !order.rating ? <Button title="Rate your delivery" onPress={() => setRating(true)} /> : null}
       <Button title="View order details" variant="secondary" onPress={() => router.push({ pathname: '/order/[id]', params: { id } })} />
-      {canCancel(status) ? (
-        <Button
-          title="Cancel order"
-          variant="ghost"
-          loading={cancel.isPending}
-          onPress={() =>
-            confirm({
-              title: 'Cancel this order?',
-              message: rider ? 'A rider is already on the way, so a cancellation fee may apply.' : 'No rider has been assigned yet, so cancelling is free.',
-              confirmLabel: 'Yes, cancel order',
-              cancelLabel: 'Keep order',
-              destructive: true,
-              onConfirm: () => cancel.mutate(id),
-            })
-          }
-        />
-      ) : null}
-      {cancel.isError ? <Text color="danger">{cancel.error.message}</Text> : null}
+      {canCancel(status) ? <Button title="Cancel order" variant="ghost" loading={cancelling.busy} onPress={cancelling.start} /> : null}
+      {cancelling.error ? <Text color="danger">{cancelling.error}</Text> : null}
 
       <RatingSheet visible={rating} riderName={rider?.name} loading={rate.isPending} onClose={() => setRating(false)} onSubmit={(stars, comment) => rate.mutate({ id, rating: stars, comment }, { onSuccess: () => setRating(false) })} />
     </Screen>

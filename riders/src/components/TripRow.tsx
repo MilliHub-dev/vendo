@@ -22,7 +22,8 @@ export function TripRow({ trip, onPress }: { trip: Trip; onPress: () => void }) 
           {trip.title}
         </Text>
         <Text variant="small" color="muted" numberOfLines={1}>
-          {formatTime(new Date(trip.completedAt))} · {formatDistance(trip.distanceM)} · {trip.code}
+          {formatTime(new Date(trip.completedAt))}
+          {trip.distanceM !== undefined ? ` · ${formatDistance(trip.distanceM)}` : ''} · {trip.code}
         </Text>
       </View>
       <Text variant="bodyMedium" color="success">

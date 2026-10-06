@@ -43,8 +43,10 @@ export class AccountService {
   async updatePreferences(identity: Identity, patch: Partial<Preferences>) { await this.profiles.get(identity); return this.repository.updatePreferences(identity.id, patch); }
   async requestDeletion(identity: Identity, otp: string, reason: string | undefined) {
     await this.profiles.get(identity);
-    if (!await this.limits.consume(phoneKey('verify', identity.phone), 5, 300)) throw new ApiError(429, 'OTP_RATE_LIMITED', 'Please try again later.');
-    const proof = await this.auth.verifyOtp(identity.phone, otp);
+    if (!await this.limits.consume(phoneKey('verify', identity.email ?? identity.phone), 5, 300)) throw new ApiError(429, 'OTP_RATE_LIMITED', 'Please try again later.');
+    const proof = identity.email
+      ? await (this.auth.verifyEmailOtp?.(identity.email, otp) ?? Promise.reject(new ApiError(503, 'AUTH_UNAVAILABLE', 'Email sign-in is unavailable.')))
+      : await this.auth.verifyOtp(identity.phone, otp);
     try {
       const verified = await this.auth.authenticate(proof.access_token);
       if (verified.id !== identity.id) throw new ApiError(401, 'REAUTHENTICATION_FAILED', 'Verify your account phone to continue.');

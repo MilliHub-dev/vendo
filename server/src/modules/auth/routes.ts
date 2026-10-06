@@ -20,6 +20,29 @@ export function registerAuthRoutes(app: FastifyInstance, auth: AuthGateway, limi
     catch (error) { await auth.logout(session.access_token).catch(() => {}); throw error; }
     return session;
   };
+  const emailBody = z.strictObject({ email: z.string().trim().toLowerCase().pipe(z.email().max(254)) });
+  api.post('/v1/auth/email/otp/request', {
+    config: { rateLimit: { max: 10, timeWindow: '1 hour' } },
+    schema: { tags: ['Auth'], summary: 'Request an email sign-in code', body: emailBody,
+      response: { 202: z.object({ message: z.string(), retry_after_seconds: z.number() }), ...errorResponses } },
+  }, async (request, reply) => {
+    const key = phoneKey('email', request.body.email);
+    if (!await limits.consume(`${key}:resend`, 1, 60) || !await limits.consume(`${key}:send`, 5, 3600))
+      throw new ApiError(429, 'OTP_RATE_LIMITED', 'Please wait before requesting another code.');
+    if (!auth.requestEmailOtp) throw new ApiError(503, 'AUTH_UNAVAILABLE', 'Email sign-in is not configured.');
+    await auth.requestEmailOtp(request.body.email);
+    return reply.code(202).send({ message: 'Verification code requested.', retry_after_seconds: 60 });
+  });
+  api.post('/v1/auth/email/otp/verify', {
+    config: { rateLimit: { max: 20, timeWindow: '5 minutes' } },
+    schema: { tags: ['Auth'], summary: 'Verify email code and receive a session', body: emailBody.extend({ token: z.string().regex(/^\d{6}$/) }),
+      response: { 200: sessionSchema, ...errorResponses } },
+  }, async (request) => {
+    if (!await limits.consume(phoneKey('email-verify', request.body.email), 5, 300))
+      throw new ApiError(429, 'OTP_RATE_LIMITED', 'Too many verification attempts. Please try again later.');
+    if (!auth.verifyEmailOtp) throw new ApiError(503, 'AUTH_UNAVAILABLE', 'Email sign-in is not configured.');
+    return activeSession(await auth.verifyEmailOtp(request.body.email, request.body.token));
+  });
   api.post('/v1/auth/otp/request', {
     config: { rateLimit: { max: 10, timeWindow: '1 hour' } },
     schema: { tags: ['Auth'], summary: 'Request a phone verification code', body: requestOtpSchema,

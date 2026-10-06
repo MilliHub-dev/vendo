@@ -17,29 +17,32 @@ export default function TripScreen() {
 
   return (
     <Screen>
-      <RouteMap pickupLabel={trip.pickup.split(',')[0]} dropoffLabel={trip.dropoff.split(',')[0]} height={180} />
+      {trip.pickup && trip.dropoff ? <RouteMap pickupLabel={trip.pickup.split(',')[0]} dropoffLabel={trip.dropoff.split(',')[0]} height={180} /> : null}
       <View style={{ gap: 6 }}>
         <Text variant="title">{trip.title}</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }}>
           <Badge label="Delivered" tone="success" />
           <Text variant="small" color="muted">
-            {trip.type === 'food' ? 'Food order' : 'Dispatch'} · {trip.code} · {formatDateTime(trip.completedAt)}
+            {trip.type ? `${trip.type === 'food' ? 'Food order' : 'Dispatch'} · ` : ''}
+            {trip.code} · {formatDateTime(trip.completedAt)}
           </Text>
         </View>
       </View>
+      {trip.pickup && trip.dropoff ? (
+        <Card>
+          <Text variant="caption" color="subtle">
+            PICKED UP FROM
+          </Text>
+          <Text variant="bodyMedium">{trip.pickup}</Text>
+          <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.line, marginVertical: spacing.xs }} />
+          <Text variant="caption" color="subtle">
+            DELIVERED TO
+          </Text>
+          <Text variant="bodyMedium">{trip.dropoff}</Text>
+        </Card>
+      ) : null}
       <Card>
-        <Text variant="caption" color="subtle">
-          PICKED UP FROM
-        </Text>
-        <Text variant="bodyMedium">{trip.pickup}</Text>
-        <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: colors.line, marginVertical: spacing.xs }} />
-        <Text variant="caption" color="subtle">
-          DELIVERED TO
-        </Text>
-        <Text variant="bodyMedium">{trip.dropoff}</Text>
-      </Card>
-      <Card>
-        <Row label="Distance" value={formatDistance(trip.distanceM)} />
+        {trip.distanceM !== undefined ? <Row label="Distance" value={formatDistance(trip.distanceM)} /> : null}
         <Row label="You earned" value={formatNaira(trip.earningKobo)} strong />
       </Card>
     </Screen>

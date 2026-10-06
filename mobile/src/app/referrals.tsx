@@ -20,11 +20,13 @@ export default function ReferralsScreen() {
 
   const give = formatNaira(data.refereeDiscountKobo);
   const get = formatNaira(data.referrerRewardKobo);
-  const share = () => Share.share({ message: `Get ${give} off your first Vendo order — food delivery and bike dispatch. Sign up with my code ${data.code}: ${data.shareUrl}` });
+  const amounts = data.refereeDiscountKobo > 0 && data.referrerRewardKobo > 0;
+  const joined = data.friends.length || (data.pendingCount ?? 0) + (data.rewardedCount ?? 0);
+  const share = () => Share.share({ message: `${amounts ? `Get ${give} off your first Vendo order` : 'Try Vendo'} — food delivery and bike dispatch. Sign up with my code ${data.code}: ${data.shareUrl}` });
   const steps = [
     `Share your code with a friend who’s new to Vendo.`,
-    `They get ${give} off their first order.`,
-    `When that order is delivered, ${get} lands in your Vendo Wallet.`,
+    amounts ? `They get ${give} off their first order.` : 'They get a discount on their first order.',
+    amounts ? `When that order is delivered, ${get} lands in your Vendo Wallet.` : 'When that order is delivered, your reward lands in your Vendo Wallet.',
   ];
 
   return (
@@ -32,7 +34,7 @@ export default function ReferralsScreen() {
       <View style={[styles.hero, { backgroundColor: palette.blue }]}>
         <View style={{ flex: 1, gap: 4 }}>
           <Text variant="title" style={{ color: '#fff' }}>
-            Give {give}, get {get}
+            {amounts ? `Give ${give}, get ${get}` : 'Invite friends, earn rewards'}
           </Text>
           <Text variant="small" style={{ color: 'rgba(255,255,255,0.85)' }}>
             Invite friends to Vendo and you both save.
@@ -51,7 +53,7 @@ export default function ReferralsScreen() {
 
       <View style={styles.stats}>
         <Card style={styles.stat}>
-          <Text variant="title">{data.friends.length}</Text>
+          <Text variant="title">{joined}</Text>
           <Text variant="small" color="muted">
             Friends joined
           </Text>
@@ -107,9 +109,9 @@ export default function ReferralsScreen() {
       <SectionHeader title="Have a friend’s code?" />
       {data.appliedCode ? (
         <Card>
-          <Text variant="bodyMedium">Code {data.appliedCode} added</Text>
+          <Text variant="bodyMedium">{data.appliedCode === 'applied' ? 'A friend’s code has been added' : `Code ${data.appliedCode} added`}</Text>
           <Text variant="small" color="muted">
-            {give} comes off your first order automatically.
+            {amounts ? `${give} comes off` : 'Your discount comes off'} your first order automatically.
           </Text>
         </Card>
       ) : data.canApply ? (

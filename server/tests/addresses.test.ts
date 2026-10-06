@@ -18,7 +18,7 @@ test('Addresses and maps API/SQL: ownership, partial edits/defaults, city prefer
     CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
     GRANT USAGE ON SCHEMA public,auth TO anon,authenticated,service_role;
     GRANT EXECUTE ON FUNCTION auth.uid() TO anon,authenticated;`);
-  for (const file of ['202610030001_accounts.sql', '202610030002_account_controls.sql', '202610030003_food_court.sql', '202610030004_dispatch.sql', '202610030005_addresses_maps.sql', '202610030006_orders.sql', '202610030007_payments_wallet.sql', '202610030008_matching_tracking.sql', '202610030009_notifications_extras.sql', '202610030010_operations_finance_chat.sql','202610030011_media_storage.sql','202610030012_vendor_registration.sql']) await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'));
+  for (const file of ['202610030001_accounts.sql', '202610030002_account_controls.sql', '202610030003_food_court.sql', '202610030004_dispatch.sql', '202610030005_addresses_maps.sql', '202610030006_orders.sql', '202610030007_payments_wallet.sql', '202610030008_matching_tracking.sql', '202610030009_notifications_extras.sql', '202610030010_operations_finance_chat.sql','202610030011_media_storage.sql','202610030012_vendor_registration.sql','202610060013_vendor_portal.sql']) await db.exec(await readFile(new URL(`../supabase/migrations/${file}`, import.meta.url), 'utf8'));
   const query = (sql: string, values?: unknown[]) => db.query(sql, values);
   const pool = { query, connect: async () => ({ query, release() {} }) } as unknown as pg.Pool;
   const profiles = new PostgresProfileRepository(pool), addresses = new PostgresAddressRepository(pool);

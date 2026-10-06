@@ -1,0 +1,57 @@
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+import {PGlite} from '@electric-sql/pglite';
+import {readFile,readdir} from 'node:fs/promises';
+import {randomUUID} from 'node:crypto';
+import type pg from 'pg';
+import {PostgresAdminPortalRepository,resources} from '../src/modules/admin-portal/repository.js';
+import {AdminBroadcasts} from '../src/modules/admin-portal/broadcasts.js';
+import {PostgresProfileRepository} from '../src/modules/users/repository.js';
+import {PostgresNotificationRepository} from '../src/modules/notifications/repository.js';
+import {buildApp} from '../src/app.js';
+import {readEnv} from '../src/config/env.js';
+import {fixtures} from './helpers.js';
+
+test('Admin portal: real reads, boundaries, audited retry-safe balances and durable scheduled campaigns',async t=>{
+ const db=new PGlite();t.after(()=>db.close());
+ await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;CREATE ROLE service_role BYPASSRLS;CREATE SCHEMA auth;CREATE TABLE auth.users(id uuid PRIMARY KEY);CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT NULL::uuid $$;`);
+ const dir=new URL('../supabase/migrations/',import.meta.url);for(const file of (await readdir(dir)).filter(f=>f.endsWith('.sql')).sort())await db.exec(await readFile(new URL(file,dir),'utf8'));
+ const query=(sql:string,args?:unknown[])=>db.query(sql,args);const pool={query,connect:async()=>({query,release(){}})} as unknown as pg.Pool;
+ const profiles=new PostgresProfileRepository(pool),portal=new PostgresAdminPortalRepository(pool),broadcasts=new AdminBroadcasts(pool),notifications=new PostgresNotificationRepository(pool);
+ const admin={id:randomUUID(),phone:'+2348011111111'},customer={id:randomUUID(),phone:'+2348022222222'},rider={id:randomUUID(),phone:'+2348033333333'};
+ for(const [name,u]of Object.entries({admin,customer,rider})){await db.query('INSERT INTO auth.users VALUES($1)',[u.id]);await profiles.bootstrap(u.id,u.phone);await profiles.setName(u.id,name);await profiles.setEmail(u.id,`${name}@example.com`);}
+ await db.query("UPDATE public.profiles SET role='admin' WHERE id=$1",[admin.id]);await db.query("UPDATE public.profiles SET role='rider' WHERE id=$1",[rider.id]);
+ const city=(await db.query<{id:string}>('SELECT id FROM public.cities LIMIT 1')).rows[0]!.id;await db.query('UPDATE public.cities SET is_active=true WHERE id=$1',[city]);await db.query('UPDATE public.profiles SET city_id=$2 WHERE id=$1',[customer.id,city]);
+ await db.query("INSERT INTO vendo_internal.riders(profile_id,city_id,vehicle_type,plate_number) VALUES($1,$2,'motorcycle','ABC123')",[rider.id,city]);
+ for(const resource of resources){const rows=await portal.list(admin.id,resource,50,0,randomUUID());assert.ok(Array.isArray(rows),resource);}
+ await assert.rejects(()=>portal.list(customer.id,'customers',50,0),/authorized/);
+ assert.ok((await portal.overview(admin.id)).today);
+ const input={kind:'customer' as const,id:customer.id,amount_kobo:20000,reason:'Support-approved credit'};
+ await portal.adjust(admin.id,input,'credit-key');await portal.adjust(admin.id,input,'credit-key');
+ assert.equal(Number((await db.query<{balance_kobo:number}>('SELECT balance_kobo FROM public.wallets WHERE customer_id=$1',[customer.id])).rows[0]!.balance_kobo),20000);
+ await assert.rejects(()=>portal.adjust(admin.id,{...input,amount_kobo:10000},'credit-key'),/different adjustment/);
+ await assert.rejects(()=>portal.adjust(admin.id,{...input,amount_kobo:-30000},'overdraft-key'),/allowed balance/);
+ assert.equal((await db.query<{n:number}>('SELECT count(*)::int AS n FROM vendo_internal.admin_actions')).rows[0]!.n,1);
+ await portal.adjust(admin.id,{...input,kind:'rider',id:rider.id,amount_kobo:10000},'rider-credit-key');
+ assert.equal(Number((await db.query<{available_kobo:number}>("SELECT available_kobo FROM vendo_internal.earnings_accounts WHERE kind='rider' AND entity_id=$1",[rider.id])).rows[0]!.available_kobo),10000);
+ await notifications.register(customer.id,{platform:'android',token:'a_realistic_device_token_for_test'});
+ assert.equal(await broadcasts.count(admin.id,'customers',[city]),1);
+ const campaign={audience:'customers' as const,city_ids:[city],title:'Service update',body:'Stores are now open'};
+ const sent=await broadcasts.send(admin.id,campaign,'campaign-key');const retry=await broadcasts.send(admin.id,campaign,'campaign-key');assert.equal(sent.id,retry.id);
+ await assert.rejects(()=>broadcasts.send(admin.id,{...campaign,title:'Changed'},'campaign-key'),/different campaign/);
+ await broadcasts.process();await broadcasts.process();
+ assert.equal((await db.query<{n:number}>("SELECT count(*)::int AS n FROM public.notifications WHERE kind='admin_push'")).rows[0]!.n,1);
+ assert.equal((await db.query<{n:number}>("SELECT count(*)::int AS n FROM vendo_internal.notification_outbox o JOIN public.notifications n ON n.id=o.notification_id WHERE n.kind='admin_push'")).rows[0]!.n,1);
+ assert.equal((await broadcasts.list(admin.id,50,0))[0]!.status,'queued');
+ await assert.rejects(()=>broadcasts.cancel(admin.id,String(sent.id)),/already been queued/);
+ const future=await broadcasts.send(admin.id,{...campaign,send_at:new Date(Date.now()+3600000).toISOString()},'future-key');await broadcasts.cancel(admin.id,String(future.id));await broadcasts.process();
+ assert.equal((await db.query<{n:number}>("SELECT count(*)::int AS n FROM public.notifications WHERE kind='admin_push'")).rows[0]!.n,1);
+ const consent=await broadcasts.send(admin.id,{...campaign,send_at:new Date(Date.now()+3600000).toISOString()},'consent-key');await db.query('INSERT INTO public.account_preferences(profile_id,push_enabled) VALUES($1,false) ON CONFLICT(profile_id) DO UPDATE SET push_enabled=false',[customer.id]);await db.query('UPDATE vendo_internal.admin_broadcasts SET send_at=now() WHERE id=$1',[consent.id]);await broadcasts.process();
+ assert.equal((await broadcasts.list(admin.id,50,0)).find(b=>b.id===consent.id)!.recipients,0);
+ const fx=fixtures();fx.dependencies.auth.authenticate=async token=>token==='admin'?admin:customer;
+ const app=await buildApp(readEnv({NODE_ENV:'test'}),{...fx.dependencies,profiles,adminPortal:portal,adminBroadcasts:broadcasts});t.after(()=>app.close());
+ assert.equal((await app.inject({url:'/v1/admin/me',headers:{authorization:'Bearer customer'}})).statusCode,403);
+ assert.equal((await app.inject({url:'/v1/admin/me',headers:{authorization:'Bearer admin'}})).json().role,'admin');
+ const page=await app.inject({url:'/v1/admin/portal/data/customers?limit=1&offset=0',headers:{authorization:'Bearer admin'}});assert.equal(page.statusCode,200,page.body);assert.equal(page.json().items.length,1);
+ const invalid=await app.inject({method:'POST',url:'/v1/admin/balances/adjust',headers:{authorization:'Bearer admin','idempotency-key':'valid-key'},payload:{...input,amount_kobo:0}});assert.equal(invalid.statusCode,400);
+});

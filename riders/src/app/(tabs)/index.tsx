@@ -1,3 +1,4 @@
+import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Bell, ChevronRight, Navigation, Star } from 'lucide-react-native';
 import { StyleSheet, Switch, View } from 'react-native';
@@ -5,6 +6,7 @@ import { StyleSheet, Switch, View } from 'react-native';
 import { useEarnings, useJob, useMe, useRider, useSetOnline, useTrips } from '@/api/queries';
 import { TripRow } from '@/components/TripRow';
 import { Card, IconButton, Screen, SectionHeader, Text } from '@/components/ui';
+import { hasBackgroundPermission } from '@/lib/location';
 import { formatNaira } from '@/lib/money';
 import { palette, radius, shadows, spacing, useTheme } from '@/theme';
 
@@ -24,6 +26,9 @@ export default function HomeScreen() {
   const online = presence !== 'offline';
   const busy = !!job.data;
 
+  // without "allow all the time", the phone stops sharing location when the app leaves the screen and the server takes the rider offline
+  const background = useQuery({ queryKey: ['background-location', online], queryFn: hasBackgroundPermission, enabled: online });
+
   return (
     <Screen safeTop>
       <View style={styles.header}>
@@ -32,7 +37,8 @@ export default function HomeScreen() {
           <View style={styles.rating}>
             <Star size={14} color={colors.warning} fill={colors.warning} />
             <Text variant="small" color="muted">
-              {rider.data?.rating ? rider.data.rating.toFixed(1) : 'New'} · {rider.data?.plateNumber}
+              {rider.data?.rating ? `${rider.data.rating.toFixed(1)} · ` : ''}
+              {rider.data?.plateNumber}
             </Text>
           </View>
         </View>
@@ -50,6 +56,11 @@ export default function HomeScreen() {
           <Text variant="small" style={{ color: online ? 'rgba(255,255,255,0.85)' : colors.muted }}>
             {busy ? 'New orders pause until you finish.' : online ? 'Looking for orders near you…' : 'Go online to receive delivery requests.'}
           </Text>
+          {online && !busy && background.data === false ? (
+            <Text variant="small" style={{ color: '#fff' }}>
+              Keep Vendo Rider open: location is only allowed while the app is on screen. Choose “Allow all the time” in your phone’s settings to stay online with the screen off.
+            </Text>
+          ) : null}
           {setOnline.isError ? (
             <Text variant="small" style={{ color: online ? '#fff' : colors.danger }}>
               {setOnline.error.message}
@@ -91,7 +102,7 @@ export default function HomeScreen() {
       <View style={styles.stats}>
         <Stat value={earnings.data ? formatNaira(earnings.data.today.earnedKobo) : '—'} label="Earned" accent />
         <Stat value={String(earnings.data?.today.trips ?? '—')} label="Trips" />
-        <Stat value={rider.data ? `${Math.round(rider.data.acceptanceRate * 100)}%` : '—'} label="Accepted" />
+        <Stat value={earnings.data ? formatNaira(earnings.data.week.earnedKobo) : '—'} label="This week" />
       </View>
 
       <SectionHeader title="Recent trips" action={trips.data?.length ? 'See all' : undefined} onAction={() => router.push('/trips')} />

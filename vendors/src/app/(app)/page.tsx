@@ -23,6 +23,7 @@ export default function DashboardPage() {
   const openOrder = useUi((s) => s.openOrder);
   const s = store.data;
   const d = dashboard.data;
+  if (store.isError || dashboard.isError || orders.isError || menu.isError) return <p className="note note--danger">{store.error?.message ?? dashboard.error?.message ?? orders.error?.message ?? menu.error?.message}</p>;
   if (!s || !d) return <Spinner />;
 
   const open = s.isOpen;

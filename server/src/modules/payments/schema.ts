@@ -7,7 +7,7 @@ export type Payment = z.infer<typeof paymentSchema>;
 export type Intent = Payment & { customer_id:string; email:string; idempotency_key:string };
 export const walletSchema = z.object({ currency:z.literal('NGN'), balance_kobo:z.number().int().nonnegative(), updated_at:z.string().nullable() });
 export type Wallet = z.infer<typeof walletSchema>;
-export const ledgerSchema = z.object({ id:z.uuid(), kind:z.enum(['top_up','checkout','refund','referral']), reference:z.string(), amount_kobo:z.number().int(), balance_after_kobo:z.number().int(), order_id:z.uuid().nullable(), payment_id:z.uuid().nullable(), created_at:z.string() });
+export const ledgerSchema = z.object({ id:z.uuid(), kind:z.enum(['top_up','checkout','refund','referral','adjustment']), reference:z.string(), amount_kobo:z.number().int(), balance_after_kobo:z.number().int(), order_id:z.uuid().nullable(), payment_id:z.uuid().nullable(), created_at:z.string() });
 export type LedgerEntry = z.infer<typeof ledgerSchema>;
 export interface PaymentRepository {
   prepare(userId:string,key:string,input:{order_id:string}|{amount_kobo:number;method:PaymentMethod}):Promise<{intent:Intent;fresh:boolean}>;

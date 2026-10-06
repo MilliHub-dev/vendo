@@ -11,7 +11,7 @@ import { MenuRow } from '@/components/Tiles';
 import { Badge, Button, IconButton, Text, Thumb } from '@/components/ui';
 import { cartCount, cartSubtotal } from '@/lib/cart';
 import { formatNaira } from '@/lib/money';
-import { useAddToCart } from '@/lib/use-add-to-cart';
+import { needsChoice, useAddToCart } from '@/lib/use-add-to-cart';
 import { useCart } from '@/store/cart';
 import { spacing, useTheme } from '@/theme';
 
@@ -46,18 +46,20 @@ export default function VendorScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: spacing.xxl }} stickyHeaderIndices={[2]}>
         <View>
-          <Thumb emoji={vendor.emoji} size={220} emojiSize={96} rounded={0} style={{ width: '100%', height: 220 + insets.top }} />
+          <Thumb uri={vendor.imageUrl} emoji={vendor.emoji} size={220} emojiSize={96} rounded={0} style={{ width: '100%', height: 220 + insets.top }} />
           <View style={[styles.back, { top: insets.top + spacing.sm }]}>
             <IconButton icon={ArrowLeft} label="Back" onPress={() => router.back()} />
           </View>
-          <View style={[styles.avatar, { backgroundColor: colors.surface, borderColor: colors.bg }]}>
-            <Text style={{ fontSize: 30, lineHeight: 38 }} maxFontSizeMultiplier={1}>
-              {vendor.emoji}
-            </Text>
-          </View>
+          {vendor.emoji ? (
+            <View style={[styles.avatar, { backgroundColor: colors.surface, borderColor: colors.bg }]}>
+              <Text style={{ fontSize: 30, lineHeight: 38 }} maxFontSizeMultiplier={1}>
+                {vendor.emoji}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
-        <View style={styles.info}>
+        <View style={[styles.info, !vendor.emoji && { paddingTop: spacing.lg }]}>
           <View style={styles.titleRow}>
             <Text variant="title" style={{ flexShrink: 1 }}>
               {vendor.name}
@@ -72,7 +74,7 @@ export default function VendorScreen() {
               {vendor.rating.toFixed(1)}
             </Text>
             <Text variant="small" color="muted">
-              ({vendor.ratingCount} reviews) ·
+              {vendor.ratingCount !== undefined ? `(${vendor.ratingCount} reviews) ` : ''}·
             </Text>
             <Clock size={14} color={colors.subtle} />
             <Text variant="small" color="muted">
@@ -84,11 +86,16 @@ export default function VendorScreen() {
             </Text>
           </View>
           <Text variant="small" color="muted">
-            Delivery fee:{' '}
-            <Text variant="smallMedium" color="primary">
-              {formatNaira(vendor.deliveryFeeKobo)}
-            </Text>{' '}
-            · {vendor.address}
+            {vendor.deliveryFeeKobo !== undefined ? (
+              <>
+                Delivery fee:{' '}
+                <Text variant="smallMedium" color="primary">
+                  {formatNaira(vendor.deliveryFeeKobo)}
+                </Text>{' '}
+                ·{' '}
+              </>
+            ) : null}
+            {vendor.address}
           </Text>
         </View>
 
@@ -109,7 +116,7 @@ export default function VendorScreen() {
 
         <View style={styles.menu}>
           {shown.map((item) => (
-            <MenuRow key={item.id} item={item} disabled={!vendor.isOpen} onPress={() => setSelected(item)} onAdd={() => addToCart(item, vendor.name)} />
+            <MenuRow key={item.id} item={item} disabled={!vendor.isOpen} onPress={() => setSelected(item)} onAdd={() => (needsChoice(item) ? setSelected(item) : addToCart(item, vendor.name))} />
           ))}
         </View>
       </ScrollView>
@@ -123,8 +130,8 @@ export default function VendorScreen() {
       <ItemSheet
         item={selected}
         onClose={() => setSelected(null)}
-        onAdd={(item, quantity, note) => {
-          addToCart(item, vendor.name, quantity, note);
+        onAdd={(item, choice) => {
+          addToCart(item, vendor.name, choice);
           setSelected(null);
         }}
       />

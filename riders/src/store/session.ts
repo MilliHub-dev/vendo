@@ -2,13 +2,15 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 
-import { hydrateMock } from '@/api/mock';
+import { api } from '@/api/client';
+import { setAuthLostHandler } from '@/api/http/request';
 import type { Rider, User } from '@/api/types';
 
 /**
  * Who is signed in, and how far their rider application has got — this decides which
  * part of the app they see (sign-in, application, or the working app).
- * TODO(real backend): keep the token in the device keychain (expo-secure-store).
+ * `token` here only marks "signed in"; the tokens that matter are kept in the device keychain
+ * by src/api/http/tokens.ts.
  */
 type SessionState = {
   token: string | null;
@@ -30,13 +32,15 @@ export const useSession = create<SessionState>()(
       setToken: (token) => set({ token }),
       signIn: (token, user) => set({ token, user }),
       setRider: (rider) => set((s) => (JSON.stringify(s.rider) === JSON.stringify(rider) ? s : { rider })),
-      signOut: () => set({ token: null, user: null, rider: null }),
+      signOut: () => {
+        void api.signOut();
+        set({ token: null, user: null, rider: null });
+      },
     }),
     {
       name: 'vendo-rider-session',
       storage: createJSONStorage(() => AsyncStorage),
       onRehydrateStorage: () => (state) => {
-        if (state?.user) hydrateMock(state.user, state.rider);
         useSessionReady.setState(true);
       },
     },
@@ -48,3 +52,6 @@ export const useSessionReady = create<boolean>()(() => false);
 
 export type Stage = 'signed_out' | 'applying' | 'working';
 export const useStage = (): Stage => useSession((s) => (!s.token || !s.user ? 'signed_out' : s.rider?.approval === 'approved' ? 'working' : 'applying'));
+
+// the server refused to renew the session (signed out elsewhere, or expired): back to the sign-in screens
+setAuthLostHandler(() => useSession.setState({ token: null, user: null, rider: null }));

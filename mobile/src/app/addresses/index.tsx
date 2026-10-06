@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { MapPin, Plus, Trash2 } from 'lucide-react-native';
 import { Pressable, StyleSheet, View } from 'react-native';
@@ -11,6 +12,7 @@ export default function AddressesScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const { addresses, remove } = useAddresses();
+  const [error, setError] = useState<string | null>(null);
   const add = <Button title="Add address" icon={<Plus size={18} color={colors.onPrimary} />} onPress={() => router.push('/addresses/pick')} />;
 
   if (addresses.length === 0) {
@@ -23,6 +25,7 @@ export default function AddressesScreen() {
 
   return (
     <Screen footer={add}>
+      {error ? <Text color="danger">Couldn’t delete that address. {error}</Text> : null}
       {addresses.map((a) => (
         <View key={a.id} style={[styles.row, { backgroundColor: colors.surface, borderColor: colors.line }]}>
           <View style={[styles.icon, { backgroundColor: colors.primarySoft }]}>
@@ -45,7 +48,7 @@ export default function AddressesScreen() {
             accessibilityRole="button"
             accessibilityLabel={`Delete ${a.label}`}
             hitSlop={8}
-            onPress={() => confirm({ title: `Delete “${a.label}”?`, message: a.address, confirmLabel: 'Delete address', cancelLabel: 'Keep it', destructive: true, onConfirm: () => remove(a.id) })}
+            onPress={() => confirm({ title: `Delete “${a.label}”?`, message: a.address, confirmLabel: 'Delete address', cancelLabel: 'Keep it', destructive: true, onConfirm: () => void remove(a.id).catch((e: Error) => setError(e.message)) })}
             style={[styles.trash, { backgroundColor: colors.surfaceAlt }]}>
             <Trash2 size={18} color={colors.danger} />
           </Pressable>

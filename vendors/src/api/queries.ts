@@ -67,8 +67,7 @@ export function useDeleteMenuItem() {
 }
 
 export const useDashboard = () => useQuery({ queryKey: keys.dashboard, queryFn: () => api.getDashboard(), refetchInterval: 10_000 });
-export const usePayouts = () => useQuery({ queryKey: keys.payouts, queryFn: () => api.getPayouts() });
-export const useBanks = () => useQuery({ queryKey: keys.banks, queryFn: () => api.listBanks(), staleTime: Infinity });
+export const usePayouts = () => useQuery({ queryKey: keys.payouts, queryFn: () => api.getPayouts(), refetchInterval: 10000 });
 export const useReviews = () => useQuery({ queryKey: keys.reviews, queryFn: () => api.listReviews() });
 export const useNotifications = () => useQuery({ queryKey: keys.notifications, queryFn: () => api.listNotifications() });
 export function useSaveBankAccount() {

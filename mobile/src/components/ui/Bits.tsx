@@ -1,3 +1,4 @@
+import { Image } from 'expo-image';
 import { Minus, Plus, type LucideIcon } from 'lucide-react-native';
 import type { ReactNode } from 'react';
 import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
@@ -6,15 +7,19 @@ import { radius, spacing, useTheme, type ThemeColors } from '@/theme';
 
 import { Text } from './Text';
 
-/** Emoji on a tinted tile — placeholder art until vendors supply photos. */
-export function Thumb({ emoji, size = 64, emojiSize, rounded = radius.md, style }: { emoji?: string; size?: number; /** defaults to half the tile */ emojiSize?: number; rounded?: number; style?: StyleProp<ViewStyle> }) {
+/** A photo on a tinted tile. Without a photo it shows an emoji placeholder. */
+export function Thumb({ uri, emoji, size = 64, emojiSize, rounded = radius.md, style }: { uri?: string; emoji?: string; size?: number; /** defaults to half the tile */ emojiSize?: number; rounded?: number; style?: StyleProp<ViewStyle> }) {
   const glyph = emojiSize ?? size * 0.5;
   const { colors } = useTheme();
   return (
     <View style={[{ width: size, height: size, borderRadius: rounded, backgroundColor: colors.surfaceAlt, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }, style]}>
-      <Text style={{ fontSize: glyph, lineHeight: glyph * 1.25 }} maxFontSizeMultiplier={1}>
-        {emoji ?? '🍽️'}
-      </Text>
+      {uri ? (
+        <Image source={{ uri }} style={StyleSheet.absoluteFill} contentFit="cover" transition={150} recyclingKey={uri} accessible={false} />
+      ) : (
+        <Text style={{ fontSize: glyph, lineHeight: glyph * 1.25 }} maxFontSizeMultiplier={1}>
+          {emoji ?? '🍽️'}
+        </Text>
+      )}
     </View>
   );
 }

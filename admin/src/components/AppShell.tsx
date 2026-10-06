@@ -1,122 +1,18 @@
 "use client";
-
-import { useQueryClient } from "@tanstack/react-query";
-import { BarChart3, Banknote, Bell, Bike, ClipboardList, History, LayoutDashboard, LogOut, MapPin, Megaphone, Menu, Store, Users, type LucideIcon } from "lucide-react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
-
-import { useOverview } from "@/api/queries";
-import type { Overview } from "@/api/types";
-import { can, roleLabel, type Permission } from "@/lib/permissions";
-import { useSession } from "@/store/session";
-
-import { Logo } from "./Logo";
-import { ThemeToggle } from "./ThemeToggle";
-import { Confirm, Spinner } from "./ui";
-
-type NavItem = { href: string; label: string; icon: LucideIcon; needs?: Permission; badge?: (q: Overview["queues"]) => number };
-const nav: NavItem[] = [
-  { href: "/", label: "Overview", icon: LayoutDashboard },
-  { href: "/orders/", label: "Orders", icon: ClipboardList, badge: (q) => q.disputes },
-  { href: "/riders/", label: "Riders", icon: Bike, badge: (q) => q.riderApprovals },
-  { href: "/vendors/", label: "Vendors", icon: Store, badge: (q) => q.vendorApprovals },
-  { href: "/customers/", label: "Customers", icon: Users },
-  { href: "/payments/", label: "Payments", icon: Banknote, badge: (q) => q.withdrawals },
-  { href: "/cities/", label: "Cities & pricing", icon: MapPin },
-  { href: "/promotions/", label: "Promotions", icon: Megaphone },
-  { href: "/notifications/", label: "Notifications", icon: Bell },
-  { href: "/analytics/", label: "Analytics", icon: BarChart3 },
-  { href: "/audit/", label: "Audit log", icon: History, needs: "audit.view" },
-];
-
-/** Sends the visitor to login (or into the app) and returns true once this page may render. */
-export function useGate(wanted: "signed_out" | "signed_in") {
-  const router = useRouter();
-  const admin = useSession((s) => s.admin);
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []); // the saved session lives in localStorage, so wait for the browser
-  const stage = admin ? "signed_in" : "signed_out";
-  useEffect(() => {
-    if (hydrated && stage !== wanted) router.replace(stage === "signed_out" ? "/login/" : "/");
-  }, [hydrated, stage, wanted, router]);
-  return hydrated && stage === wanted;
-}
-
-export function AppShell({ children }: { children: ReactNode }) {
-  const ok = useGate("signed_in");
-  const pathname = usePathname().replace(/\/$/, "") || "/";
-  const queryClient = useQueryClient();
-  const { admin, signOut } = useSession();
-  const overview = useOverview();
-  const [loggingOut, setLoggingOut] = useState(false);
-  const [menu, setMenu] = useState(false);
-
-  if (!ok || !admin) return <Spinner />;
-
-  const items = nav.filter((n) => !n.needs || can(admin.role, n.needs));
-  const isCurrent = (href: string) => (href === "/" ? pathname === "/" : pathname.startsWith(href.replace(/\/$/, "")));
-  const title = nav.find((n) => isCurrent(n.href))?.label ?? "Vendo Admin";
-
-  return (
-    <div className="shell" data-menu={menu ? "open" : undefined}>
-      {menu ? <div className="shell__scrim" onClick={() => setMenu(false)} /> : null}
-      <aside className="sidebar">
-        <div className="brand">
-          <Logo />
-          <span className="brand__tag">ADMIN</span>
-        </div>
-        <nav className="nav" aria-label="Main">
-          {items.map(({ href, label, icon: Icon, badge }) => {
-            const count = overview.data && badge ? badge(overview.data.queues) : 0;
-            return (
-              <Link key={href} href={href} aria-current={isCurrent(href) ? "page" : undefined} onClick={() => setMenu(false)}>
-                <Icon />
-                <span>{label}</span>
-                {count > 0 ? <span className="nav__badge">{count > 9 ? "9+" : count}</span> : null}
-              </Link>
-            );
-          })}
-        </nav>
-        <div className="sidebar__foot">
-          <div className="row">
-            <div className="avatar">{admin.name.slice(0, 1)}</div>
-            <div className="grow">
-              <div className="strong truncate">{admin.name}</div>
-              <div className="small muted truncate">{roleLabel[admin.role]}</div>
-            </div>
-          </div>
-          <button type="button" className="btn btn--secondary btn--sm" onClick={() => setLoggingOut(true)}>
-            <LogOut /> Log out
-          </button>
-        </div>
-      </aside>
-
-      <div className="main">
-        <header className="topbar">
-          <button type="button" className="icon-btn topbar__menu" aria-label="Menu" aria-expanded={menu} onClick={() => setMenu(true)}>
-            <Menu />
-          </button>
-          <h1 className="grow truncate">{title}</h1>
-          <span className="badge badge--primary">{roleLabel[admin.role]}</span>
-          <ThemeToggle />
-        </header>
-        <main className="page">{children}</main>
-      </div>
-
-      {loggingOut ? (
-        <Confirm
-          title="Log out?"
-          message="You’ll need your email and password to sign in again."
-          confirmLabel="Log out"
-          danger
-          onClose={() => setLoggingOut(false)}
-          onConfirm={() => {
-            queryClient.clear();
-            signOut();
-          }}
-        />
-      ) : null}
-    </div>
-  );
+import Link from 'next/link';
+import {usePathname,useRouter} from 'next/navigation';
+import {useEffect,useState,type ReactNode} from 'react';
+import {useQuery,useQueryClient} from '@tanstack/react-query';
+import {api} from '@/api/client';
+import {useSession} from '@/store/session';
+import {Logo} from './Logo';
+import {ThemeToggle} from './ThemeToggle';
+import {Button,Spinner} from './ui';
+export function useGate(wanted:'signed_out'|'signed_in'){const router=useRouter();const admin=useSession(s=>s.admin);const [ready,setReady]=useState(false);useEffect(()=>setReady(true),[]);const stage=admin?'signed_in':'signed_out';useEffect(()=>{if(ready&&stage!==wanted)router.replace(stage==='signed_out'?'/login/':'/');},[ready,stage,wanted,router]);return ready&&stage===wanted;}
+const nav=[['/','Overview'],['/orders/','Orders'],['/riders/','Riders'],['/vendors/','Vendors'],['/customers/','Customers'],['/payments/','Payments'],['/cities/','Cities & pricing'],['/promotions/','Promotions'],['/notifications/','Notifications'],['/analytics/','Analytics'],['/support/','Support'],['/audit/','Audit log']];
+export function AppShell({children}:{children:ReactNode}){const ok=useGate('signed_in');const path=usePathname();const admin=useSession(s=>s.admin);const client=useQueryClient();const [menu,setMenu]=useState(false);const [logoutError,setLogoutError]=useState('');
+ const me=useQuery({queryKey:['admin-me'],queryFn:api.me,enabled:ok,refetchInterval:30000,retry:false});
+ useEffect(()=>{if(me.data)useSession.getState().signIn(me.data);},[me.data]);
+ if(!ok||!admin)return <Spinner/>;
+ return <div className="shell" data-menu={menu?'open':undefined}><aside className="sidebar"><div className="brand"><Logo/><span className="brand__tag">ADMIN</span></div><nav className="nav">{nav.map(([href,label])=><Link key={href} href={href} aria-current={path===href?'page':undefined} onClick={()=>setMenu(false)}><span>{label}</span></Link>)}</nav><div className="sidebar__foot"><span>{admin.name??admin.email}</span><Button variant="secondary" onClick={async()=>{if(!window.confirm('Log out of Vendo Admin?'))return;try{await api.logout();}catch{setLogoutError('The local session ended; remote logout could not be confirmed.');}finally{client.clear();}}}>Log out</Button></div></aside><div className="main"><header className="topbar"><Button size="sm" variant="ghost" onClick={()=>setMenu(!menu)}>Menu</Button><h1 className="grow">{nav.find(([href])=>href===path)?.[1]??'Vendo Admin'}</h1><ThemeToggle/></header><main className="page">{logoutError?<p role="alert">{logoutError}</p>:null}{me.isError?<div className="card stack"><p role="alert">{me.error.message}</p><Button onClick={()=>me.refetch()}>Retry access check</Button></div>:!me.data?<Spinner/>:children}</main></div></div>;
 }

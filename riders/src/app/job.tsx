@@ -3,8 +3,6 @@ import { CircleDot, MapPin, MessageCircle, Navigation, Phone } from 'lucide-reac
 import { useRef, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 
-import { MOCK_DELIVERY_CODE } from '@/api/mock';
-import { apiMode } from '@/api/client';
 import { useAdvanceJob, useJob, useMessages } from '@/api/queries';
 import type { Job, Place } from '@/api/types';
 import { RouteMap } from '@/components/RouteMap';
@@ -38,20 +36,22 @@ export default function JobScreen() {
   if (!job.data) return advance.isSuccess ? null : <Redirect href="/" />;
 
   const j = job.data;
+  // food orders don't share the customer's name or number with the rider; chat is the way to reach them
+  const who = j.contact?.name ?? (j.type === 'food' ? 'the customer' : 'the receiver');
   const toPickup = j.status === 'rider_assigned';
   const target = toPickup ? j.pickup : j.dropoff;
-  const finished = (done: Job) => router.replace({ pathname: '/job-done', params: { earning: String(done.earningKobo), title: done.vendorName ?? done.contact.name, code: done.code } });
+  const finished = (done: Job) => router.replace({ pathname: '/job-done', params: { earning: done.earningKobo === undefined ? '' : String(done.earningKobo), title: done.vendorName ?? done.contact?.name ?? 'Delivery', code: done.code } });
 
   const step = {
     rider_assigned: { title: 'Go to the pickup', hint: j.type === 'food' ? `Collect the order from ${j.vendorName}.` : 'Collect the package from the sender.', button: 'I’ve picked it up', action: () => advance.mutate({ action: 'picked_up' }) },
     picked_up: { title: 'Picked up', hint: 'Check you have everything, then start the delivery.', button: 'Start delivery', action: () => advance.mutate({ action: 'on_the_way' }) },
     on_the_way: j.requiresCode
-      ? { title: `Deliver to ${j.contact.name}`, hint: 'Ask the receiver for their 4-digit delivery code before you hand over the package.', button: 'Enter delivery code', action: () => setCodeSheet(true) }
+      ? { title: `Deliver to ${who}`, hint: 'Ask the receiver for their 4-digit delivery code before you hand over the package.', button: 'Enter delivery code', action: () => setCodeSheet(true) }
       : {
-          title: `Deliver to ${j.contact.name}`,
+          title: `Deliver to ${who}`,
           hint: 'Hand over the order, then mark it delivered.',
           button: 'Mark as delivered',
-          action: () => confirm({ title: 'Order handed over?', message: `Confirm you’ve given the order to ${j.contact.name}.`, confirmLabel: 'Yes, delivered', cancelLabel: 'Not yet', onConfirm: () => advance.mutate({ action: 'delivered' }, { onSuccess: finished }) }),
+          action: () => confirm({ title: 'Order handed over?', message: `Confirm you’ve given the order to ${who}.`, confirmLabel: 'Yes, delivered', cancelLabel: 'Not yet', onConfirm: () => advance.mutate({ action: 'delivered' }, { onSuccess: finished }) }),
         },
     delivered: { title: 'Delivered', hint: '', button: 'Done', action: () => router.replace('/') },
     cancelled: { title: 'Order cancelled', hint: 'The customer cancelled this order.', button: 'Back to home', action: () => router.replace('/') },
@@ -59,7 +59,7 @@ export default function JobScreen() {
 
   return (
     <Screen footer={<Button title={step.button} loading={advance.isPending && !codeSheet} onPress={step.action} />}>
-      <RouteMap pickupLabel={j.vendorName ?? 'Pickup'} dropoffLabel={j.contact.name} progress={j.status === 'rider_assigned' ? 0 : j.status === 'picked_up' ? 0.04 : 0.55} height={200} />
+      <RouteMap pickupLabel={j.vendorName ?? 'Pickup'} dropoffLabel={j.contact?.name ?? 'Drop-off'} progress={j.status === 'rider_assigned' ? 0 : j.status === 'picked_up' ? 0.04 : 0.55} height={200} />
 
       <View style={{ gap: 2 }}>
         <View style={styles.titleRow}>
@@ -94,18 +94,18 @@ export default function JobScreen() {
       <Card style={styles.contact}>
         <View style={[styles.avatar, { backgroundColor: colors.primarySoft }]}>
           <Text variant="heading" color="primary">
-            {j.contact.name.slice(0, 1)}
+            {(j.contact?.name ?? (j.type === 'food' ? 'C' : 'R')).slice(0, 1)}
           </Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text variant="bodyMedium" color="heading">
-            {j.contact.name}
+            {j.contact?.name ?? (j.type === 'food' ? 'Customer' : 'Receiver')}
           </Text>
           <Text variant="small" color="muted">
-            {j.type === 'food' ? 'Customer' : 'Receiver'}
+            {j.contact ? (j.type === 'food' ? 'Customer' : 'Receiver') : 'Message them in the chat'}
           </Text>
         </View>
-        <IconButton icon={Phone} label={`Call ${j.contact.name}`} tone="soft" onPress={() => Linking.openURL(`tel:${j.contact.phone}`)} />
+        {j.contact ? <IconButton icon={Phone} label={`Call ${j.contact.name}`} tone="soft" onPress={() => Linking.openURL(`tel:${j.contact!.phone}`)} /> : null}
         <View>
           <IconButton icon={MessageCircle} label={unread ? `Chat, ${unread} new message${unread === 1 ? '' : 's'}` : 'Chat'} tone="soft" onPress={() => router.push('/chat')} />
           {unread > 0 ? (
@@ -128,7 +128,7 @@ export default function JobScreen() {
         ) : null}
         <View style={[styles.rule, { backgroundColor: colors.line }]} />
         <Row label="Trip distance" value={formatDistance(j.tripDistanceM)} />
-        <Row label="You earn" value={formatNaira(j.earningKobo)} strong />
+        {j.earningKobo !== undefined ? <Row label="You earn" value={formatNaira(j.earningKobo)} strong /> : <Row label="Your earning" value="Added after delivery" />}
       </Card>
 
       {advance.isError && !codeSheet ? <Text color="danger">{advance.error.message}</Text> : null}
@@ -149,16 +149,16 @@ export default function JobScreen() {
   );
 }
 
-/** The receiver reads out their code; three wrong tries locks the delivery (server rule). */
+/** The receiver reads out their code. The server locks the delivery after too many wrong tries. */
 function CodeSheet({ job, error, loading, onClose, onSubmit }: { job: Job; error: string | null; loading: boolean; onClose: () => void; onSubmit: (code: string) => void }) {
   const { colors } = useTheme();
   const input = useRef<TextInput>(null);
   const [code, setCode] = useState('');
-  const locked = job.codeAttemptsLeft <= 0;
+  const locked = job.codeAttemptsLeft !== undefined && job.codeAttemptsLeft <= 0;
 
   return (
     <Sheet visible onClose={onClose} title="Delivery code" footer={locked ? <Button title="Message support on WhatsApp" onPress={() => Linking.openURL(SUPPORT_WHATSAPP)} /> : <Button title="Complete delivery" disabled={code.length < 4} loading={loading} onPress={() => onSubmit(code)} />}>
-      <Text color="muted">{locked ? 'This delivery is locked after three wrong codes. Keep the package with you and contact Vendo support.' : `Ask ${job.contact.name} for the 4-digit code the sender shared with them.`}</Text>
+      <Text color="muted">{locked ? 'This delivery is locked after three wrong codes. Keep the package with you and contact Vendo support.' : `Ask ${job.contact?.name ?? 'the receiver'} for the 4-digit code the sender shared with them.`}</Text>
       {!locked ? (
         <Pressable accessibilityLabel="Delivery code" onPress={() => input.current?.focus()} style={styles.boxes}>
           {[0, 1, 2, 3].map((i) => (
@@ -170,11 +170,6 @@ function CodeSheet({ job, error, loading, onClose, onSubmit }: { job: Job; error
         </Pressable>
       ) : null}
       {error ? <Text color="danger">{error}</Text> : null}
-      {apiMode === 'mock' && !locked ? (
-        <Text variant="small" color="subtle">
-          Demo mode: the code is {MOCK_DELIVERY_CODE}.
-        </Text>
-      ) : null}
     </Sheet>
   );
 }

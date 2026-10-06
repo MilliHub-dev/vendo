@@ -24,7 +24,7 @@ export function PrepTimeModal({ loading, error, onClose, onConfirm }: { loading:
           </Button>
         </>
       }>
-      <p className="muted">The rider is timed to arrive when the order is ready, so be realistic.</p>
+      <p className="muted">Choose your preparation estimate. Mark the order ready when it is packed.</p>
       <div className="wrap" role="radiogroup" aria-label="Preparation time">
         {PREP_TIMES.map((m) => (
           <button key={m} type="button" role="radio" className="chip" aria-checked={minutes === m} onClick={() => setMinutes(m)}>
@@ -53,7 +53,7 @@ export function RejectModal({ loading, error, onClose, onConfirm }: { loading: b
           </Button>
         </>
       }>
-      <p className="muted">The customer is refunded in full. Rejecting often lowers your store’s ranking.</p>
+      <p className="muted">The customer’s order will be cancelled and its refund will be processed.</p>
       <div className="stack-sm" role="radiogroup" aria-label="Reason">
         {REASONS.map((r) => (
           <label key={r} className="row" style={{ padding: "10px 12px", border: "1px solid var(--line)", borderRadius: "var(--radius)", cursor: "pointer" }}>

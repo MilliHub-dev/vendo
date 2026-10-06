@@ -21,9 +21,11 @@ export const sessionSchema = z.object({
   access_token: z.string(), refresh_token: z.string(), expires_in: z.number().int(), token_type: z.literal('bearer'),
 });
 export type AuthSession = z.infer<typeof sessionSchema>;
-export type Identity = { id: string; phone: string };
+export type Identity = { id: string; phone: string; email?: string };
 
 export interface AuthGateway {
+  requestEmailOtp?(email: string): Promise<void>;
+  verifyEmailOtp?(email: string, token: string): Promise<AuthSession>;
   requestOtp(phone: string): Promise<void>;
   verifyOtp(phone: string, token: string): Promise<AuthSession>;
   refresh(refreshToken: string): Promise<AuthSession>;

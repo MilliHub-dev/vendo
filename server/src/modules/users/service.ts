@@ -15,9 +15,16 @@ export class ProfileService {
   constructor(private readonly repository: ProfileRepository) {}
 
   async get(identity: Identity): Promise<Profile> {
-    const profile = await this.repository.bootstrap(identity.id, identity.phone);
+    const profile = await this.repository.bootstrap(identity.id, identity.phone, identity.email);
     assertActive(profile);
     return profile;
+  }
+
+  async addPhone(identity: Identity, phone: string): Promise<Profile> {
+    const profile = await this.get(identity);
+    if (!profile.name) throw new ApiError(409, 'NAME_REQUIRED', 'Add your name before adding your phone number.');
+    if (!this.repository.setPhone) throw new ApiError(503, 'PROFILE_UNAVAILABLE', 'Phone updates are unavailable.');
+    return this.repository.setPhone(identity.id, phone);
   }
 
   async addName(identity: Identity, name: string): Promise<Profile> {

@@ -27,7 +27,7 @@ export default function CheckoutScreen() {
   const createOrder = useCreateOrder();
 
   const request: QuoteRequest | null =
-    vendorId && dropoff ? { type: 'food', vendorId, items: lines.map((l) => ({ menuItemId: l.menuItemId, quantity: l.quantity })), dropoff: { ...dropoff, note: note.trim() || undefined }, promoCode: promo?.code } : null;
+    vendorId && dropoff ? { type: 'food', vendorId, items: lines.map((l) => ({ menuItemId: l.menuItemId, quantity: l.quantity, optionIds: l.optionIds, note: l.note })), dropoff: { ...dropoff, note: note.trim() || undefined }, promoCode: promo?.code } : null;
   const quote = useQuote(request);
 
   if (lines.length === 0 && !createOrder.isSuccess) return <Redirect href="/cart" />;
@@ -39,7 +39,8 @@ export default function CheckoutScreen() {
       {
         onSuccess: (order) => {
           clear();
-          router.replace({ pathname: '/order/[id]/placed', params: { id: order.id } });
+          // not paid (payment page closed, or wallet short): go to the order, where it can be paid
+          router.replace({ pathname: order.isPaid === false ? '/order/[id]' : '/order/[id]/placed', params: { id: order.id } });
         },
       },
     );
@@ -68,7 +69,7 @@ export default function CheckoutScreen() {
           {vendorName} · {cartCount(lines)} items
         </Text>
         {lines.map((l) => (
-          <Row key={l.menuItemId} label={`${l.quantity} × ${l.name}`} value={formatNaira(l.unitPriceKobo * l.quantity)} />
+          <Row key={l.key} label={`${l.quantity} × ${l.name}${l.options ? ` (${l.options})` : ''}`} value={formatNaira(l.unitPriceKobo * l.quantity)} />
         ))}
         <View style={[styles.rule, { backgroundColor: colors.line }]} />
         <Row label="Items subtotal" value={quote.data ? formatNaira(quote.data.subtotalKobo) : '—'} />

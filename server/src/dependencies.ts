@@ -1,3 +1,5 @@
+import { AdminBroadcasts } from './modules/admin-portal/broadcasts.js';
+import { PostgresAdminPortalRepository } from './modules/admin-portal/repository.js';
 import type { Env } from './config/env.js';
 import { ApiError } from './lib/errors.js';
 import { createPool } from './integrations/database.js';
@@ -50,7 +52,7 @@ export async function createDependencies(env: Env): Promise<Dependencies> {
   }
   const storage=env.SUPABASE_URL&&env.SUPABASE_SERVICE_ROLE_KEY?createObjectStorage(env.SUPABASE_URL,env.SUPABASE_SERVICE_ROLE_KEY,'vendo-public','vendo-documents'):unavailableStorage;
   return {
-    vendors:pool?new PostgresVendorRepository(pool):{register:unavailable,applications:unavailable,review:unavailable,withdraw:unavailable,stores:unavailable,store:unavailable,update:unavailable,orders:unavailable,order:unavailable,summary:unavailable},
+    vendors:pool?new PostgresVendorRepository(pool):{portal:unavailable,register:unavailable,applications:unavailable,review:unavailable,withdraw:unavailable,stores:unavailable,store:unavailable,update:unavailable,orders:unavailable,order:unavailable,summary:unavailable},
     media:pool?new PostgresMediaRepository(pool,storage):{upload:unavailable,get:unavailable,download:unavailable},
     chat:pool?new PostgresChatRepository(pool):{list:unavailable,send:unavailable,read:unavailable},
     operations:pool?new PostgresOperationsRepository(pool,env.RIDER_DOCUMENT_SECRET,storage):{adminOrders:unavailable,adminOrder:unavailable,cities:unavailable,saveCity:unavailable,riders:unavailable,reassign:unavailable,cancel:unavailable,custody:unavailable,vendorOrders:unavailable,vendorMenu:unavailable,saveMenu:unavailable,vendorOpen:unavailable,documents:unavailable,upload:unavailable,document:unavailable,reviewDocument:unavailable,saveTier:unavailable,tiers:unavailable,membership:unavailable,saveBanner:unavailable,banners:unavailable,placements:unavailable,report:unavailable,audits:unavailable,health:unavailable,heartbeat:unavailable},
@@ -67,6 +69,7 @@ export async function createDependencies(env: Env): Promise<Dependencies> {
     matching: pool ? new PostgresMatchingRepository(pool) : { register: unavailable, rider: unavailable, review: unavailable, presence: unavailable, locate: unavailable, currentOffer: unavailable, respond: unavailable, job: unavailable, savePolicy: unavailable, tracking: unavailable, retry: unavailable, cancelSearch: unavailable, queue: unavailable, process: unavailable },
     payments: pool ? new PostgresPaymentRepository(pool) : { prepare: unavailable, initialized: unavailable, review: unavailable, find: unavailable, apply: unavailable, wallet: unavailable, history: unavailable, checkout: unavailable, enqueue: unavailable, pending: unavailable, finishEvents: unavailable, refundWallets: unavailable, reconcileRefund: unavailable },
     paymentGateway: env.PAYSTACK_SECRET_KEY ? createPaystackGateway(env.PAYSTACK_SECRET_KEY, env.PAYSTACK_CALLBACK_URL) : { configured: false, initialize: unavailable, verify: unavailable, verifyRefund: unavailable },
+    ...(pool ? {adminPortal: new PostgresAdminPortalRepository(pool),adminBroadcasts:new AdminBroadcasts(pool)} : {}),
     orders: pool ? new PostgresOrderRepository(pool) : { events: unavailable, receipt: unavailable, cancellation: unavailable, cancel: unavailable, reschedule: unavailable, dispute: unavailable, resolveDispute: unavailable, rating: unavailable, savePolicy: unavailable, policy: unavailable, riderAction: unavailable, processDue: unavailable },
     addresses: pool ? new PostgresAddressRepository(pool) : { cities: unavailable, city: unavailable, saveBoundary: unavailable, list: unavailable, get: unavailable, save: unavailable, delete: unavailable, preferredCity: unavailable, setCity: unavailable },
     geocoder: env.PHOTON_BASE_URL ? createPhotonGeocoder(env.PHOTON_BASE_URL) : { search: unavailable, reverse: unavailable },
@@ -99,6 +102,8 @@ export async function createDependencies(env: Env): Promise<Dependencies> {
       await pool.query('SELECT id FROM vendo_internal.media_assets LIMIT 0');
       await pool.query('SELECT storage_path FROM vendo_internal.rider_documents LIMIT 0');
       await pool.query('SELECT id FROM public.order_messages LIMIT 0');
+      await pool.query('SELECT id FROM vendo_internal.admin_actions LIMIT 0');
+      await pool.query('SELECT id FROM vendo_internal.admin_broadcasts LIMIT 0');
       await pool.query('SELECT id FROM vendo_internal.withdrawals LIMIT 0');
       if (redis) await redis.ping();
       return true;

@@ -1,6 +1,8 @@
 import type { DayHours, Order, OrderStatus } from '@/api/types';
 
 export const statusLabel: Record<OrderStatus, string> = {
+  pending: 'Pending',
+  disputed: 'Disputed',
   new: 'New',
   preparing: 'Preparing',
   ready: 'Ready for pickup',
@@ -28,6 +30,7 @@ export function formatHour(time: string): string {
 
 /** e.g. "Mon–Sat · 8:00 AM – 9:00 PM", or "Varies by day" when days differ. */
 export function summariseHours(hours: DayHours[]): string {
+  if (!hours.length) return 'Hours not set';
   const open = hours.filter((d) => d.open);
   if (open.length === 0) return 'Closed every day';
   const same = open.every((d) => d.from === open[0].from && d.to === open[0].to);

@@ -141,3 +141,23 @@ test('OpenAPI contains onboarding schemas and bearer security', async (t) => {
   assert.equal(document.paths['/v1/me/name'].patch.requestBody.content['application/json'].schema.additionalProperties, false);
   assert.equal(document.paths['/v1/auth/logout'].post.requestBody.required, false);
 });
+
+test('email OTP normalizes addresses, rate limits resends and verifies sessions', async (t) => {
+  const fixture = fixtures();
+  const requested: string[] = [];
+  fixture.dependencies.auth.requestEmailOtp = async email => { requested.push(email); };
+  fixture.dependencies.auth.verifyEmailOtp = async (email, token) => {
+    assert.equal(email, 'owner@example.com');
+    if (token !== '123456') throw new ApiError(401, 'AUTH_FAILED', 'Invalid code.');
+    return { access_token: 'alice', refresh_token: 'refresh-alice', expires_in: 3600, token_type: 'bearer' };
+  };
+  const app = await buildApp(env, fixture.dependencies); t.after(() => app.close());
+  const send = (email: string) => app.inject({ method: 'POST', url: '/v1/auth/email/otp/request', payload: { email } });
+  assert.equal((await send(' Owner@Example.com ')).statusCode, 202);
+  assert.deepEqual(requested, ['owner@example.com']);
+  assert.equal((await send('owner@example.com')).statusCode, 429);
+  assert.equal((await send('invalid')).statusCode, 400);
+  const verify = (token: string) => app.inject({ method: 'POST', url: '/v1/auth/email/otp/verify', payload: { email: 'owner@example.com', token } });
+  assert.equal((await verify('999999')).statusCode, 401);
+  assert.equal((await verify('123456')).json().access_token, 'alice');
+});

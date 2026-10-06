@@ -1,60 +1,14 @@
-/**
- * The one door between pages and the backend. Pages use the hooks in ./queries.
- * The mock is used for now (UI-first build); add ./http implementing this interface
- * against server/ (the /v1/admin/* endpoints) and switch with NEXT_PUBLIC_API_MODE=http.
- */
-import { mockApi } from "./mock/index.ts";
-import type { Admin, Audience, AuditEntry, Banner, Broadcast, BroadcastInput, City, CityUpdate, Customer, Order, Overview, PromoCode, ReferralConfig, Rider, Transaction, Vendor, VendorInput, Withdrawal } from "./types";
-
-export interface ApiClient {
-  /** Email + password, restricted to the company's email domain. Real backend: add two-factor sign-in. */
-  login(email: string, password: string): Promise<{ token: string; admin: Admin }>;
-
-  getOverview(): Promise<Overview>;
-
-  listOrders(): Promise<Order[]>;
-  reassignOrder(id: string, riderId: string): Promise<Order>;
-  cancelOrder(id: string, reason: string): Promise<Order>;
-  refundOrder(id: string, amountKobo: number, reason: string): Promise<Order>;
-  resolveDispute(id: string, note: string): Promise<Order>;
-
-  listRiders(): Promise<Rider[]>;
-  reviewRider(id: string, decision: "approve" | "reject", note: string): Promise<Rider>;
-  setRiderSuspended(id: string, suspended: boolean, reason: string): Promise<Rider>;
-
-  listVendors(): Promise<Vendor[]>;
-  saveVendor(input: VendorInput, id?: string): Promise<Vendor>;
-  reviewVendor(id: string, decision: "approve" | "reject"): Promise<Vendor>;
-  setVendorSuspended(id: string, suspended: boolean, reason: string): Promise<Vendor>;
-
-  listCustomers(): Promise<Customer[]>;
-  /** Manual credit or debit of a customer or rider wallet. Always needs a reason; always audit-logged. */
-  adjustWallet(party: "customer" | "rider", id: string, direction: "credit" | "debit", amountKobo: number, reason: string): Promise<void>;
-
-  listTransactions(): Promise<Transaction[]>;
-  listWithdrawals(): Promise<Withdrawal[]>;
-  decideWithdrawal(id: string, decision: "approve" | "decline", note: string): Promise<Withdrawal>;
-
-  listCities(): Promise<City[]>;
-  updateCity(id: string, update: CityUpdate): Promise<City>;
-
-  listBanners(): Promise<Banner[]>;
-  saveBanner(banner: Omit<Banner, "id">, id?: string): Promise<Banner>;
-  listPromoCodes(): Promise<PromoCode[]>;
-  savePromoCode(promo: Omit<PromoCode, "id" | "uses">, id?: string): Promise<PromoCode>;
-  getReferralConfig(): Promise<ReferralConfig>;
-  updateReferralConfig(config: ReferralConfig): Promise<ReferralConfig>;
-
-  listBroadcasts(): Promise<Broadcast[]>;
-  /** How many people have the app with notifications on, for this audience and these cities. */
-  countAudience(audience: Audience, cityIds: string[]): Promise<number>;
-  /** Sends a push notification now, or schedules it when `sendAt` is set. */
-  sendBroadcast(input: BroadcastInput): Promise<Broadcast>;
-  cancelBroadcast(id: string): Promise<Broadcast>;
-
-  listAudit(): Promise<AuditEntry[]>;
-}
-
-export const apiMode = process.env.NEXT_PUBLIC_API_MODE === "http" ? "http" : "mock";
-
-export const api: ApiClient = mockApi;
+import {createTransport,type Tokens} from './transport';
+import type {Admin,Page,Row} from './types';
+import {useSession} from '@/store/session';
+export const baseUrl=process.env.NEXT_PUBLIC_API_URL??'https://api.vendoltd.com';
+export const request=createTransport(baseUrl,{get:()=>({...useSession.getState(),accountId:useSession.getState().admin?.id}),save:t=>useSession.getState().setTokens(t),clear:()=>useSession.getState().signOut()});
+export const api={
+ async requestCode(email:string){await request('/v1/auth/email/otp/request','POST',{email},false);},
+ async verifyCode(email:string,code:string){const tokens=await request<Tokens>('/v1/auth/email/otp/verify','POST',{email,token:code},false);useSession.getState().setTokens(tokens);
+  try {const admin=await request<Admin>('/v1/admin/me');useSession.getState().signIn(admin);return admin;}catch(error){await api.logout();throw error;}},
+ async me(){return request<Admin>('/v1/admin/me');},
+ async logout(){try{if(useSession.getState().token)await request('/v1/auth/logout','POST',{scope:'local'});}finally{useSession.getState().signOut();}},
+ async data(resource:string,offset=0,id?:string){return request<Page>(`/v1/admin/portal/data/${resource}?limit=50&offset=${offset}${id?'&id='+encodeURIComponent(id):''}`);},
+ async list(path:string,offset=0){const paginated=/^\/v1\/admin\/(orders|riders|vendor-applications|withdrawals|audits|broadcasts|support\/tickets)$/.test(path);const rows=await request<Row[]>(paginated?`${path}?limit=50&offset=${offset}`:path);return paginated?rows:rows.slice(offset,offset+50);},
+};

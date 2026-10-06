@@ -3,7 +3,7 @@ import { isSimplePolygon } from '../../lib/geo.js';
 import { ApiError } from '../../lib/errors.js';
 import type { Identity } from '../auth/schema.js';
 import { requireCompleteProfile, type ProfileService } from '../users/service.js';
-import { priceCart, deliveryFee, insidePolygon, cityOpen } from './pricing.js';
+import { vendorHoursOpen, priceCart, deliveryFee, insidePolygon, cityOpen } from './pricing.js';
 import { pointSchema, quoteSnapshotSchema, type Cart, type FoodRepository, type QuoteInput, type Routing, type VendorSearch } from './schema.js';
 
 export class FoodService {
@@ -17,13 +17,13 @@ export class FoodService {
   async cart(identity: Identity, input: Cart) {
     await this.profiles.get(identity);
     const details = await this.vendor(input.vendor_id);
-    if (!details.vendor.is_open) throw new ApiError(409, 'VENDOR_CLOSED', 'This vendor is not accepting orders.');
+    if (!details.vendor.is_open || !vendorHoursOpen(details.vendor.opening_hours)) throw new ApiError(409, 'VENDOR_CLOSED', 'This vendor is not accepting orders.');
     return priceCart(input, details.menu);
   }
   async quote(identity: Identity, input: QuoteInput) {
     requireCompleteProfile(await this.profiles.get(identity));
     const details = await this.vendor(input.vendor_id);
-    if (!details.vendor.is_open) throw new ApiError(409, 'VENDOR_CLOSED', 'This vendor is not accepting orders.');
+    if (!details.vendor.is_open || !vendorHoursOpen(details.vendor.opening_hours)) throw new ApiError(409, 'VENDOR_CLOSED', 'This vendor is not accepting orders.');
     const city = await this.repository.getCity(details.vendor.city_id);
     if (!city || !city.is_active || !cityOpen(city)) throw new ApiError(409, 'CITY_UNAVAILABLE', 'This city is not accepting deliveries now.');
     const boundary = z.array(pointSchema).min(3).max(500).refine(isSimplePolygon).safeParse(city.service_polygon);

@@ -10,6 +10,7 @@ export default function ReviewsPage() {
   const reviews = useReviews();
   const store = useStore();
   const s = store.data;
+  if (reviews.isError || store.isError) return <p className="note note--danger">{reviews.error?.message ?? store.error?.message}</p>;
   if (!reviews.data || !s) return <Spinner />;
 
   const counts = [5, 4, 3, 2, 1].map((n) => ({ n, count: reviews.data.filter((r) => r.rating === n).length }));

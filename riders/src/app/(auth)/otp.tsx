@@ -3,7 +3,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 
-import { api, apiMode } from '@/api/client';
+import { api } from '@/api/client';
 import { Button, Screen, Text } from '@/components/ui';
 import { useSession } from '@/store/session';
 import { fonts, radius, spacing, useTheme } from '@/theme';
@@ -11,9 +11,9 @@ import { fonts, radius, spacing, useTheme } from '@/theme';
 const LENGTH = 6;
 const RESEND_SECONDS = 30;
 
-/** Enter the SMS code. Known numbers are signed in; new numbers continue to name and email, then the rider application. */
+/** Enter the emailed code. Known accounts are signed in; new ones continue to name and contact number, then the rider application. */
 export default function OtpScreen() {
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const { email } = useLocalSearchParams<{ email: string }>();
   const { colors } = useTheme();
   const router = useRouter();
   const input = useRef<TextInput>(null);
@@ -22,7 +22,7 @@ export default function OtpScreen() {
   const { signIn, setToken } = useSession();
 
   const verify = useMutation({
-    mutationFn: (c: string) => api.verifyCode(phone, c),
+    mutationFn: (c: string) => api.verifyCode(email, c),
     onSuccess: ({ token, user }) => {
       if (user) return signIn(token, user); // returning rider: the root layout swaps to the app
       setToken(token);
@@ -30,7 +30,7 @@ export default function OtpScreen() {
     },
     onError: () => setCode(''),
   });
-  const resend = useMutation({ mutationFn: () => api.requestCode(phone), onSuccess: () => setSeconds(RESEND_SECONDS) });
+  const resend = useMutation({ mutationFn: () => api.requestCode(email), onSuccess: () => setSeconds(RESEND_SECONDS) });
 
   useEffect(() => {
     if (seconds <= 0) return;
@@ -48,7 +48,7 @@ export default function OtpScreen() {
     <Screen footer={<Button title="Verify" disabled={code.length < LENGTH} loading={verify.isPending} onPress={() => verify.mutate(code)} />}>
       <View style={{ gap: spacing.xs }}>
         <Text variant="display">Enter the code</Text>
-        <Text color="muted">We sent a 6-digit code to {phone}.</Text>
+        <Text color="muted">We emailed a 6-digit code to {email}.</Text>
       </View>
 
       <Pressable accessibilityLabel="Verification code" onPress={() => input.current?.focus()} style={styles.boxes}>
@@ -64,7 +64,7 @@ export default function OtpScreen() {
           onChangeText={onChange}
           keyboardType="number-pad"
           textContentType="oneTimeCode"
-          autoComplete="sms-otp"
+          autoComplete="one-time-code"
           autoFocus
           maxLength={LENGTH}
           caretHidden
@@ -73,14 +73,8 @@ export default function OtpScreen() {
       </Pressable>
 
       {verify.isError ? <Text color="danger">{verify.error.message}. Check the code and try again.</Text> : null}
-      {apiMode === 'mock' ? (
-        <Text variant="small" color="subtle">
-          Demo mode: no SMS is sent. Use code 123456.
-        </Text>
-      ) : null}
-
       {seconds > 0 ? (
-        <Text color="muted">Didn’t get it? You can resend in {seconds}s.</Text>
+        <Text color="muted">Didn’t get it? Check your spam folder. You can resend in {seconds}s.</Text>
       ) : (
         <Button title="Resend code" variant="ghost" loading={resend.isPending} onPress={() => resend.mutate()} style={{ alignSelf: 'flex-start', paddingHorizontal: 0 }} />
       )}

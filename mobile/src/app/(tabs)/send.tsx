@@ -8,7 +8,7 @@ import { useMe } from '@/api/queries';
 import type { PackageSize, Place } from '@/api/types';
 import { AddressSheet, WhenPicker } from '@/components/sheets';
 import { Button, Chip, Input, Screen, Text } from '@/components/ui';
-import { normalisePhone } from '@/lib/photon';
+import { normalisePhone } from '@/lib/phone';
 import { packageSizes, useDispatchDraft } from '@/store/dispatch';
 import { palette, radius, spacing, useTheme } from '@/theme';
 

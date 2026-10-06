@@ -3,6 +3,7 @@ import { notificationEmail } from '../../emails/templates.js';
 export class NotificationService {
     constructor(private readonly repository: NotificationRepository, private readonly transports: NotificationTransports) { }
     async process(limit = 25, reminderMinutes = 30) {
+        await this.repository.processBroadcasts?.(5);
         const reminders = await this.repository.reminders(limit, reminderMinutes);
         let sent = 0, skipped = 0, failed = 0;
         // Each lease is refreshed by claim immediately before its send, avoiding batch lease expiry.

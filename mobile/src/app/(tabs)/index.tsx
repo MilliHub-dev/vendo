@@ -1,15 +1,17 @@
 import { useRouter } from 'expo-router';
 import { Bell, ChevronDown, MapPin, Search, SlidersHorizontal } from 'lucide-react-native';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { useMe, usePicks, useVendors } from '@/api/queries';
 import type { VendorCategory } from '@/api/types';
+import { CityPicker } from '@/components/CityPicker';
 import { PromoCarousel } from '@/components/PromoCarousel';
 import { ItemTile, VendorTile } from '@/components/Tiles';
 import { IconButton, Screen, SectionHeader, Text } from '@/components/ui';
-import { useAddToCart } from '@/lib/use-add-to-cart';
+import { needsChoice, useAddToCart } from '@/lib/use-add-to-cart';
 import { useAddresses } from '@/store/addresses';
+import { useCity } from '@/store/city';
 import { radius, shadows, spacing, useTheme } from '@/theme';
 
 const categories: { value: VendorCategory | undefined; label: string; emoji: string }[] = [
@@ -30,6 +32,14 @@ export default function HomeScreen() {
   const picks = usePicks();
   const addToCart = useAddToCart();
   const home = useAddresses((s) => s.addresses[0]);
+  const loadAddresses = useAddresses((s) => s.load);
+  useEffect(() => {
+    void loadAddresses().catch(() => {}); // the saved copy on the device is shown until this succeeds
+  }, [loadAddresses]);
+  const city = useCity((s) => s.city);
+  const [choosingCity, setChoosingCity] = useState(false);
+  // nothing can be listed until the city is known
+  const mustChooseCity = !city;
   const openVendor = (id: string) => router.push({ pathname: '/vendor/[id]', params: { id } });
 
   return (
@@ -48,6 +58,14 @@ export default function HomeScreen() {
               <ChevronDown size={16} color={colors.heading} />
             </View>
           </Pressable>
+          {city ? (
+            <Pressable accessibilityRole="button" accessibilityLabel={`City: ${city.name}. Change city`} onPress={() => setChoosingCity(true)} style={[styles.city, { backgroundColor: colors.surface, borderColor: colors.line }]}>
+              <Text variant="smallMedium" color="heading">
+                {city.name}
+              </Text>
+              <ChevronDown size={14} color={colors.heading} />
+            </Pressable>
+          ) : null}
           <IconButton icon={Bell} label="Notifications" onPress={() => router.push('/notifications')} />
         </View>
 
@@ -116,15 +134,17 @@ export default function HomeScreen() {
         </View>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hscroll}>
           {picks.data?.map((item) => (
-            <ItemTile key={item.id} item={item} vendorName={item.vendorName} onPress={() => openVendor(item.vendorId)} onAdd={() => addToCart(item, item.vendorName)} />
+            <ItemTile key={item.id} item={item} vendorName={item.vendorName} onPress={() => openVendor(item.vendorId)} onAdd={() => (needsChoice(item) ? openVendor(item.vendorId) : addToCart(item, item.vendorName))} />
           ))}
         </ScrollView>
       </View>
+      <CityPicker visible={choosingCity || mustChooseCity} required={mustChooseCity} onClose={() => setChoosingCity(false)} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  city: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 40, paddingHorizontal: spacing.md, borderRadius: radius.pill, borderWidth: 1 },
   pad: { paddingHorizontal: spacing.lg, gap: spacing.lg },
   header: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   location: { flexDirection: 'row', alignItems: 'center', gap: 4 },

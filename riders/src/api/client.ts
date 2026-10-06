@@ -1,19 +1,19 @@
 /**
- * The one door between screens and the backend. Screens use the hooks in ./queries and
- * never know whether data is mock or real. The mock is used for now (UI-first build);
- * add ./http implementing this same interface against server/ and switch with
- * EXPO_PUBLIC_API_MODE=http.
+ * The one door between screens and the backend. Screens use the hooks in ./queries;
+ * ./http implements this interface against the Vendo API (EXPO_PUBLIC_API_URL).
  */
-import { mockApi } from './mock';
+import { httpApi } from './http';
 import type {
   AppNotification,
   Bank,
   ChatMessage,
   City,
+  DocumentFile,
   DocumentKind,
   Earnings,
   Job,
   Offer,
+  PayoutAccount,
   ProfileDetails,
   RegisterRiderRequest,
   Rider,
@@ -25,22 +25,24 @@ import type {
 } from './types';
 
 export interface ApiClient {
-  // sign-up / login — the same phone → code → name + email flow as the customer app
-  requestCode(phone: string): Promise<void>;
-  verifyCode(phone: string, code: string): Promise<VerifyCodeResult>;
+  // sign-up / login — the same email → code → name + phone flow as the customer app
+  requestCode(email: string): Promise<void>;
+  verifyCode(email: string, code: string): Promise<VerifyCodeResult>;
   completeSignUp(details: ProfileDetails): Promise<User>;
   getMe(): Promise<User>;
+  /** Goes offline, stops sharing location, ends the session and forgets the saved sign-in. */
+  signOut(): Promise<void>;
 
   // rider application
   listCities(): Promise<City[]>;
   /** null until the rider has registered a vehicle */
   getRider(): Promise<Rider | null>;
   registerRider(body: RegisterRiderRequest): Promise<Rider>;
-  /** Real backend: uploads the file to private storage. */
-  uploadDocument(kind: DocumentKind): Promise<Rider>;
-  submitApplication(): Promise<Rider>;
+  /** Uploads a photo or PDF to private storage. Once every required document is in, the application is under review. */
+  uploadDocument(kind: DocumentKind, file: DocumentFile): Promise<Rider>;
 
   // working
+  /** Going online needs the phone's location: the server only accepts a fresh, accurate position inside the rider's city. */
   setOnline(online: boolean): Promise<Rider>;
   getCurrentOffer(): Promise<Offer | null>;
   respondToOffer(id: string, action: 'accept' | 'reject'): Promise<Job | null>;
@@ -56,11 +58,11 @@ export interface ApiClient {
   getTrip(id: string): Promise<Trip>;
   getEarnings(): Promise<Earnings>;
   listBanks(): Promise<Bank[]>;
+  /** The saved payout account, or null if none has been added. */
+  getPayoutAccount(): Promise<PayoutAccount | null>;
   listWithdrawals(): Promise<Withdrawal[]>;
   requestWithdrawal(body: WithdrawalRequest): Promise<Withdrawal>;
   listNotifications(): Promise<AppNotification[]>;
 }
 
-export const apiMode = process.env.EXPO_PUBLIC_API_MODE === 'http' ? 'http' : 'mock';
-
-export const api: ApiClient = mockApi;
+export const api: ApiClient = httpApi;

@@ -20,6 +20,7 @@ export type DeliveryTarget = {
     urgent: boolean;
 };
 export interface NotificationRepository {
+    processBroadcasts?(limit: number): Promise<number>;
     sendAdminPush(admin: string, input: z.infer<typeof adminPushInput>, key: string): Promise<z.infer<typeof adminPushResult>>;
     inbox(user: string, limit: number, offset: number): Promise<{
         items: Notification[];

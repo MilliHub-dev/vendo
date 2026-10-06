@@ -8,7 +8,8 @@ export type Kobo = number;
 export const nairaToKobo = (naira: number): Kobo => Math.round(naira * 100);
 
 /** ₦1,500 for whole naira, ₦1,500.50 when there are kobo. */
-export function formatNaira(kobo: Kobo): string {
+export function formatNaira(kobo: Kobo | null): string {
+  if (kobo === null) return '—';
   const sign = kobo < 0 ? '-' : '';
   const abs = Math.abs(Math.trunc(kobo));
   const naira = Math.floor(abs / 100);

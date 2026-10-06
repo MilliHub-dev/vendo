@@ -5,7 +5,7 @@
 import type { Kobo } from '@/lib/money';
 
 export type User = { id: string; name: string; phone: string; email: string };
-export type ProfileDetails = { name: string; email: string };
+export type ProfileDetails = { name: string; phone: string };
 export type VerifyCodeResult = { token: string; user: User | null };
 
 export type Approval = 'under_review' | 'approved' | 'rejected' | 'suspended';
@@ -33,18 +33,20 @@ export type Store = {
   rating: number;
   ratingCount: number;
   /** share of the food subtotal Vendo keeps, e.g. 0.15 */
-  commissionRate: number;
-  tier: Tier;
+  commissionRate: number | null;
+  tier: string;
   /** square logo and wide banner customers see on the store page; absent until uploaded */
   logoUrl?: string;
   bannerUrl?: string;
+  location: { lat: number; lng: number };
+  prepMinutes: number;
 };
 
 export type ImageKind = 'logo' | 'banner' | 'menu_item';
 
-export type RegisterStoreRequest = Pick<Store, 'name' | 'category' | 'cuisine' | 'description' | 'cityId' | 'address' | 'hours'>;
+export type RegisterStoreRequest = Pick<Store, 'name' | 'category' | 'cuisine' | 'description' | 'cityId' | 'address' | 'hours'> & { location: { lat: number; lng: number } };
 /** `null` for logoUrl / bannerUrl removes the image. */
-export type StoreUpdate = Partial<Pick<Store, 'name' | 'cuisine' | 'description' | 'address' | 'hours'>> & { logoUrl?: string | null; bannerUrl?: string | null };
+export type StoreUpdate = Partial<Pick<Store, 'name' | 'cuisine' | 'description' | 'address' | 'hours'>> & { location?: { lat: number; lng: number }; logoUrl?: string | null; bannerUrl?: string | null };
 
 export type MenuItem = {
   id: string;
@@ -60,7 +62,7 @@ export type MenuItem = {
 export type MenuItemInput = Omit<MenuItem, 'id'>;
 
 /** new → preparing → ready → picked_up → delivered; or rejected / cancelled. */
-export type OrderStatus = 'new' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'rejected' | 'cancelled';
+export type OrderStatus = 'new' | 'preparing' | 'ready' | 'picked_up' | 'delivered' | 'rejected' | 'cancelled' | 'pending' | 'disputed';
 
 export type Order = {
   id: string;
@@ -70,9 +72,9 @@ export type Order = {
   customerName: string;
   items: { name: string; quantity: number; unitPriceKobo: Kobo; note?: string }[];
   subtotalKobo: Kobo;
-  commissionKobo: Kobo;
+  commissionKobo: Kobo | null;
   /** what the store receives for this order: subtotal − commission */
-  payoutKobo: Kobo;
+  payoutKobo: Kobo | null;
   createdAt: string;
   /** new orders only: accept or reject before this, or the order is cancelled and refunded */
   respondBy?: string;
@@ -92,8 +94,8 @@ export type Dashboard = {
 
 export type Bank = { code: string; name: string };
 export type BankAccount = { bankCode: string; bankName: string; accountNumber: string; accountName: string };
-export type Payout = { id: string; amountKobo: Kobo; status: 'scheduled' | 'paid'; date: string; orders: number };
-export type Payouts = { balanceKobo: Kobo; nextPayoutDate: string; account: BankAccount | null; history: Payout[] };
+export type Payout = { id: string; amountKobo: Kobo; status: string; date: string; orders: number };
+export type Payouts = { balanceKobo: Kobo; nextPayoutDate: string | null; account: BankAccount | null; history: Payout[] };
 
 export type Review = { id: string; customerName: string; rating: number; comment: string; createdAt: string };
 export type AppNotification = { id: string; title: string; body: string; createdAt: string };

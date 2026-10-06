@@ -7,7 +7,6 @@ import { useDeleteMenuItem, useMenu, useSaveMenuItem, useSetItemAvailable } from
 import type { MenuItem } from "@/api/types";
 import { ImagePicker } from "@/components/ImagePicker";
 import { Badge, Button, Confirm, Empty, Input, Modal, Spinner, Switch, Textarea } from "@/components/ui";
-import { foodEmoji } from "@/lib/categories";
 import { formatNaira, nairaToKobo } from "@/lib/money";
 
 export default function MenuPage() {
@@ -17,6 +16,7 @@ export default function MenuPage() {
   const [filter, setFilter] = useState("All");
   const [editing, setEditing] = useState<MenuItem | "new" | null>(null);
   const [deleting, setDeleting] = useState<MenuItem | null>(null);
+  if (menu.isError) return <p className="note note--danger">{menu.error?.message}</p>;
   if (!menu.data) return <Spinner />;
 
   const items = menu.data;
@@ -95,7 +95,7 @@ export default function MenuPage() {
                         <button type="button" className="icon-btn" aria-label={`Edit ${item.name}`} onClick={() => setEditing(item)}>
                           <Pencil />
                         </button>
-                        <button type="button" className="icon-btn" aria-label={`Delete ${item.name}`} onClick={() => setDeleting(item)}>
+                        <button type="button" className="icon-btn" aria-label={`Remove ${item.name} from sale`} onClick={() => setDeleting(item)}>
                           <Trash2 color="var(--danger)" />
                         </button>
                       </div>
@@ -111,9 +111,9 @@ export default function MenuPage() {
       {editing ? <ItemModal existing={editing === "new" ? undefined : editing} categories={categories} onClose={() => setEditing(null)} /> : null}
       {deleting ? (
         <Confirm
-          title={`Delete “${deleting.name}”?`}
-          message="It will be removed from your menu. Past orders keep their record of it."
-          confirmLabel="Delete item"
+          title={`Remove “${deleting.name}” from sale?`}
+          message="It will become unavailable to customers. You can make it available again later."
+          confirmLabel="Remove from sale"
           danger
           loading={remove.isPending}
           onClose={() => setDeleting(null)}
@@ -130,7 +130,7 @@ function ItemModal({ existing, categories, onClose }: { existing?: MenuItem; cat
   const [description, setDescription] = useState(existing?.description ?? "");
   const [price, setPrice] = useState(existing ? String(existing.priceKobo / 100) : "");
   const [category, setCategory] = useState(existing?.category ?? categories[0] ?? "");
-  const [emoji, setEmoji] = useState(existing?.emoji ?? foodEmoji[0]);
+  const emoji = "🍽️";
   const [imageUrl, setImageUrl] = useState(existing?.imageUrl);
   const [isAvailable, setAvailable] = useState(existing?.isAvailable ?? true);
   const [touched, setTouched] = useState(false);
@@ -138,7 +138,7 @@ function ItemModal({ existing, categories, onClose }: { existing?: MenuItem; cat
   const naira = Number(price) || 0;
   const errors = {
     name: name.trim().length < 2 ? "Enter the item name" : null,
-    price: naira < 50 ? "Enter a price of at least ₦50" : null,
+    price: !price.trim() || !Number.isFinite(naira) || naira < 0 || nairaToKobo(naira) > 1000000000 ? "Enter a valid price up to ₦10,000,000" : null,
     category: !category.trim() ? "Choose or type a category" : null,
   };
   const submit = () => {
@@ -176,18 +176,6 @@ function ItemModal({ existing, categories, onClose }: { existing?: MenuItem; cat
         </div>
       </div>
       <ImagePicker kind="menu_item" label="Photo" hint="A clear photo of the dish. JPEG, PNG or WebP." value={imageUrl} onChange={(url) => setImageUrl(url ?? undefined)} placeholder={<span aria-hidden>{emoji}</span>} />
-      {!imageUrl ? (
-        <div className="field">
-          <span className="label">No photo yet? Pick an icon to show instead</span>
-          <div className="emoji-grid" role="radiogroup" aria-label="Icon">
-            {foodEmoji.map((e) => (
-              <button key={e} type="button" role="radio" aria-checked={emoji === e} aria-label={`Icon ${e}`} onClick={() => setEmoji(e)}>
-                {e}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : null}
       <label className="between note" style={{ cursor: "pointer" }}>
         <span>
           <span className="strong">Available</span>

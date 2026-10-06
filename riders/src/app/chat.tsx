@@ -31,7 +31,7 @@ export default function ChatScreen() {
   }, [jobId, fromCustomer, markSeen]);
 
   const open = !!job;
-  const rider = job ? { name: job.contact.name, phone: job.contact.phone, plateNumber: job.code } : undefined;
+  const rider = job ? { name: job.contact?.name ?? (job.type === 'food' ? 'Customer' : 'Receiver'), phone: job.contact?.phone ?? '', plateNumber: job.code } : undefined;
 
   const submit = (value: string) => {
     const body = value.trim();

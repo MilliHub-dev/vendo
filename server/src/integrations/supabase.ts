@@ -21,6 +21,15 @@ export function createSupabaseAuth(url: string, publicKey: string): AuthGateway 
     global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10000) }) },
   });
   return {
+    async requestEmailOtp(email) {
+      const { error } = await client().auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
+      if (error) throw providerError(error, 'Unable to request a verification code.');
+    },
+    async verifyEmailOtp(email, token) {
+      const { data, error } = await client().auth.verifyOtp({ email, token, type: 'email' });
+      if (error) throw providerError(error, 'The verification code is invalid or expired.');
+      return sessionResponse(data.session);
+    },
     async requestOtp(phone) {
       const { error } = await client().auth.signInWithOtp({ phone, options: { shouldCreateUser: true } });
       if (error) throw providerError(error, 'Unable to request a verification code.');
@@ -38,6 +47,9 @@ export function createSupabaseAuth(url: string, publicKey: string): AuthGateway 
     async authenticate(accessToken): Promise<Identity> {
       const { data, error } = await client().auth.getUser(accessToken);
       if (error) throw providerError(error, 'Your session is invalid or expired.');
+      if (data.user?.email && data.user.email_confirmed_at && !data.user.is_anonymous) {
+        return { id: data.user.id, phone: data.user.phone_confirmed_at && data.user.phone ? normalizePhone(data.user.phone) : '', email: data.user.email.toLowerCase() };
+      }
       if (!data.user?.phone || !data.user.phone_confirmed_at || data.user.is_anonymous) {
         throw new ApiError(401, 'PHONE_NOT_VERIFIED', 'Verify your phone number to continue.');
       }

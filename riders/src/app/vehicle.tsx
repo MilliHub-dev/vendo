@@ -1,11 +1,11 @@
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 
-import { useCities, useRider, useUploadDocument } from '@/api/queries';
+import {useCities, useRider } from '@/api/queries';
 import type { DocumentStatus } from '@/api/types';
 import { Badge, Button, Card, Row, Screen, SectionHeader, Text } from '@/components/ui';
 import { radius, spacing, useTheme } from '@/theme';
 
-import { documentInfo } from './application';
+import { documentInfo, useDocumentUpload } from './application';
 
 const tone: Record<DocumentStatus, 'success' | 'warning' | 'danger' | 'muted'> = { approved: 'success', submitted: 'warning', rejected: 'danger', missing: 'muted' };
 const label: Record<DocumentStatus, string> = { approved: 'Approved', submitted: 'In review', rejected: 'Re-upload needed', missing: 'Missing' };
@@ -15,7 +15,7 @@ export default function VehicleScreen() {
   const { colors } = useTheme();
   const rider = useRider();
   const cities = useCities();
-  const upload = useUploadDocument();
+  const upload = useDocumentUpload();
   const r = rider.data;
   if (!r) return <Screen scroll={false}><ActivityIndicator color={colors.primary} style={{ marginTop: spacing.xxl }} /></Screen>;
 
@@ -50,10 +50,11 @@ export default function VehicleScreen() {
                 </Text>
               ) : null}
             </View>
-            {doc.status === 'rejected' || doc.status === 'missing' ? <Button title="Upload" variant="secondary" loading={upload.isPending && upload.variables === doc.kind} onPress={() => upload.mutate(doc.kind)} style={{ minHeight: 44 }} /> : null}
+            {doc.status === 'rejected' || doc.status === 'missing' ? <Button title="Upload" variant="secondary" loading={upload.busyKind === doc.kind} disabled={upload.busy} onPress={() => void upload.start(doc.kind)} style={{ minHeight: 44 }} /> : null}
           </View>
         );
       })}
+      {upload.error ? <Text color="danger">{upload.error}</Text> : null}
     </Screen>
   );
 }

@@ -41,11 +41,13 @@ export default function ProfileScreen() {
         </View>
       </View>
 
-      <View style={styles.stats}>
-        <Stat value={String(r?.totalTrips ?? '—')} label="Trips" />
-        <Stat value={r?.rating ? r.rating.toFixed(1) : 'New'} label="Rating" icon={<Star size={14} color={colors.warning} fill={colors.warning} />} />
-        <Stat value={r ? `${Math.round(r.acceptanceRate * 100)}%` : '—'} label="Accepted" />
-      </View>
+      {r?.totalTrips !== undefined ? (
+        <View style={styles.stats}>
+          <Stat value={String(r.totalTrips)} label="Trips" />
+          <Stat value={r.rating ? r.rating.toFixed(1) : 'New'} label="Rating" icon={<Star size={14} color={colors.warning} fill={colors.warning} />} />
+          {r.acceptanceRate !== undefined ? <Stat value={`${Math.round(r.acceptanceRate * 100)}%`} label="Accepted" /> : null}
+        </View>
+      ) : null}
 
       <View style={{ gap: spacing.sm }}>
         <Item icon={Bike} label="Vehicle & documents" value={r?.plateNumber} href="/vehicle" />
@@ -64,7 +66,7 @@ export default function ProfileScreen() {
         onPress={() =>
           confirm({
             title: 'Log out?',
-            message: 'You’ll go offline and stop receiving orders. Sign in again with your phone number.',
+            message: 'You’ll go offline and stop receiving orders. Sign in again with your email address.',
             confirmLabel: 'Log out',
             cancelLabel: 'Stay signed in',
             destructive: true,

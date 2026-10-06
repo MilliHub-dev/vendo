@@ -1,22 +1,17 @@
 import { Stack } from 'expo-router';
 
-import { fonts, useTheme } from '@/theme';
+import { useTheme } from '@/theme';
 
-/** Sign-up and login: welcome → phone → code → (new users only) details. */
+/** Sign-up and login: welcome → email → code → (new users only) name and phone. Each screen draws its own header. */
 export default function AuthLayout() {
   const { colors } = useTheme();
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: { backgroundColor: colors.bg },
-        headerTintColor: colors.heading,
-        headerTitleStyle: { fontFamily: fonts.semibold },
-        headerShadowVisible: false,
-        headerBackButtonDisplayMode: 'minimal',
-        title: '',
-        contentStyle: { backgroundColor: colors.bg },
-      }}>
-      <Stack.Screen name="welcome" options={{ headerShown: false }} />
+    <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.bg }, animation: 'slide_from_right' }}>
+      {/* listed so the stack starts on the welcome screen */}
+      <Stack.Screen name="welcome" />
+      <Stack.Screen name="email" />
+      <Stack.Screen name="otp" />
+      <Stack.Screen name="details" />
     </Stack>
   );
 }

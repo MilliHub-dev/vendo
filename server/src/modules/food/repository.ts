@@ -1,3 +1,4 @@
+import { vendorHoursOpen } from './pricing.js';
 import {applyPromo,redeemPromo} from '../promos/pricing.js';
 import { transition } from '../orders/transitions.js';
 import { planSchedule } from '../orders/scheduling.js';
@@ -11,7 +12,7 @@ import type { z } from 'zod';
 
 type VendorRow = Omit<Vendor, 'location'> & { latitude: number; longitude: number; distance_m?: number };
 type OrderRow = Omit<FoodOrder, 'created_at' | 'vendor_ready_at' | 'scheduled_at'> & { created_at: Date; vendor_ready_at: Date | null; scheduled_at: Date | null; checkout_scheduled_at: Date | null };
-const vendorColumns = 'v.id, v.name, v.category, v.cuisine, v.city_id, v.address, v.latitude, v.longitude, v.is_open, v.is_active, v.image_url, v.prep_minutes, v.rating, v.description, v.logo_url';
+const vendorColumns = 'v.id, v.name, v.category, v.cuisine, v.city_id, v.address, v.latitude, v.longitude, v.is_open, v.is_active, v.image_url, v.prep_minutes, v.rating, v.description, v.logo_url, v.opening_hours';
 function vendor(row: VendorRow): Vendor {
   const { latitude, longitude, ...rest } = row;
   return { ...rest, location: { lat: latitude, lng: longitude } };
@@ -116,6 +117,7 @@ export class PostgresFoodRepository implements FoodRepository {
       if (!quotes.rows[0]) throw new ApiError(409, 'QUOTE_UNAVAILABLE', 'The quote expired or is unavailable. Request a new quote.');
       const snapshot = quoteSnapshotSchema.parse(quotes.rows[0].snapshot);
       const vendors = await client.query<VendorRow>('SELECT * FROM public.vendors WHERE id=$1 AND is_open AND is_active FOR SHARE', [snapshot.vendor_id]);
+      if (vendors.rows[0] && !vendorHoursOpen(vendors.rows[0].opening_hours)) throw new ApiError(409, 'VENDOR_CLOSED', 'The store is outside its opening hours.');
       const city = await client.query<CityPricing>('SELECT * FROM public.cities WHERE id=$1 AND is_active FOR SHARE', [snapshot.city_id]);
       if (!vendors.rows[0] || !city.rows[0] || !cityOpen(city.rows[0])) conflict('The vendor or city is no longer accepting orders.');
       const v = vendors.rows[0];
@@ -147,7 +149,7 @@ export class PostgresFoodRepository implements FoodRepository {
     const { rows } = await this.pool.query<OrderRow>('SELECT * FROM public.orders WHERE id=$1 AND customer_id=$2', [id, userId]);
     return rows[0] ? serializeOrder(rows[0]) : null;
   }
-  async vendorAction(actorId: string, id: string, action: 'accept' | 'reject' | 'ready') {
+  async vendorAction(actorId: string, id: string, action: 'accept' | 'reject' | 'ready', details?: { prep_minutes?: number | undefined; reason?: string | undefined }) {
     return this.transaction(async (client) => {
       const actor = await client.query<{ role: string }>("SELECT role FROM public.profiles WHERE id=$1 AND status='active' FOR SHARE", [actorId]);
       if (!actor.rows[0] || !['admin', 'vendor_staff'].includes(actor.rows[0].role)) throw new ApiError(403, 'FORBIDDEN', 'Vendor staff access is required.');
@@ -166,6 +168,7 @@ export class PostgresFoodRepository implements FoodRepository {
       const target = action === 'accept' ? 'searching_rider' : 'cancelled';
       if (row.status === target) return order(row);
       if (row.status !== 'awaiting_vendor') conflict('The order cannot be confirmed in its current state.');
+      await client.query('UPDATE public.orders SET vendor_prep_minutes=$2,vendor_rejection_reason=$3 WHERE id=$1', [id, action === 'accept' ? details?.prep_minutes ?? null : null, action === 'reject' ? details?.reason ?? null : null]);
       await transition(client, row, target, actorId, action === 'reject' ? 'vendor_rejected' : 'vendor_accepted');
       const updated = await client.query<OrderRow>('SELECT * FROM public.orders WHERE id=$1', [id]);
       return order(updated.rows[0]!);

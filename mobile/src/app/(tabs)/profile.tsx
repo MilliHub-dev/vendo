@@ -76,7 +76,7 @@ export default function ProfileScreen() {
         onPress={() =>
           confirm({
             title: 'Log out?',
-            message: 'You’ll need your phone number and a new code to sign back in.',
+            message: 'You’ll need your email and a new code to sign back in.',
             confirmLabel: 'Log out',
             cancelLabel: 'Stay signed in',
             destructive: true,

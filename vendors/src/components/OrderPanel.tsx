@@ -3,7 +3,7 @@
 import { Bike } from "lucide-react";
 import { useState } from "react";
 
-import { useOrderAction, useOrders, useStore } from "@/api/queries";
+import { useOrderAction, useOrders } from "@/api/queries";
 import type { Order } from "@/api/types";
 import { formatDateTime, formatTime } from "@/lib/dates";
 import { formatNaira } from "@/lib/money";
@@ -34,12 +34,10 @@ export function OrderPanel() {
 }
 
 function Panel({ order, onClose }: { order: Order; onClose: () => void }) {
-  const store = useStore();
   const act = useOrderAction();
   const now = useNow();
   const [modal, setModal] = useState<"accept" | "reject" | null>(null);
   const left = secondsLeft(order.respondBy, now);
-  const rate = Math.round((store.data?.commissionRate ?? 0.15) * 100);
 
   if (modal === "accept") return <PrepTimeModal loading={act.isPending} error={act.isError ? act.error.message : null} onClose={() => setModal(null)} onConfirm={(prepMinutes) => act.mutate({ id: order.id, action: "accept", prepMinutes }, { onSuccess: () => setModal(null) })} />;
   if (modal === "reject") return <RejectModal loading={act.isPending} error={act.isError ? act.error.message : null} onClose={() => setModal(null)} onConfirm={(reason) => act.mutate({ id: order.id, action: "reject", reason }, { onSuccess: () => setModal(null) })} />;
@@ -129,7 +127,7 @@ function Panel({ order, onClose }: { order: Order; onClose: () => void }) {
             <span>{formatNaira(order.subtotalKobo)}</span>
           </div>
           <div className="between">
-            <span className="muted">Vendo commission ({rate}%)</span>
+            <span className="muted">Vendo commission</span>
             <span>− {formatNaira(order.commissionKobo)}</span>
           </div>
           <div className="between" style={{ paddingTop: 8, borderTop: "1px solid var(--line)" }}>

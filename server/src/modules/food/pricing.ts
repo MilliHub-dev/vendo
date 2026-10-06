@@ -51,3 +51,12 @@ export function cityOpen(city: Pick<CityPricing, 'opens_at' | 'closes_at'>, now 
   const time = new Intl.DateTimeFormat('en-GB', { timeZone: 'Africa/Lagos', hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23' }).format(now);
   return city.opens_at < city.closes_at ? time >= city.opens_at && time < city.closes_at : time >= city.opens_at || time < city.closes_at;
 }
+
+/** Stored weekly schedules use Nigerian local time; an empty schedule preserves existing stores. */
+export function vendorHoursOpen(hours?: {day:number;open:boolean;from:string;to:string}[], now = new Date()): boolean {
+  if (!hours?.length) return true;
+  const local = new Date(now.getTime()+3600000), day=local.getUTCDay(), minute=local.getUTCHours()*60+local.getUTCMinutes();
+  const minutes=(time:string)=>Number(time.slice(0,2))*60+Number(time.slice(3));
+  const current=hours.find(h=>h.day===day), previous=hours.find(h=>h.day===(day+6)%7);
+  return Boolean(current?.open && (minutes(current.from)<minutes(current.to) ? minute>=minutes(current.from)&&minute<minutes(current.to) : minute>=minutes(current.from)) || previous?.open && minutes(previous.from)>minutes(previous.to) && minute<minutes(previous.to));
+}

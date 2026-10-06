@@ -1,3 +1,5 @@
+import { registerAdminPortalRoutes } from './modules/admin-portal/routes.js';
+import type { AdminPortalRepository } from './modules/admin-portal/repository.js';
 import { randomUUID } from 'node:crypto';
 import Fastify from 'fastify';
 import cors from '@fastify/cors';
@@ -75,6 +77,8 @@ export interface Dependencies {
   paymentGateway: PaymentGateway;
   orders: OrderRepository;
   addresses: AddressRepository;
+  adminBroadcasts?: import('./modules/admin-portal/broadcasts.js').AdminBroadcasts;
+  adminPortal?: AdminPortalRepository;
   geocoder: Geocoder;
   dispatch: DispatchRepository;
   food: FoodRepository;
@@ -152,6 +156,7 @@ export async function buildApp(env: Env, dependencies: Dependencies) {
   });
   app.get('/openapi.json', { schema: { hide: true } }, async () => app.swagger());
   const profiles = new ProfileService(dependencies.profiles);
+  registerAdminPortalRoutes(app,dependencies.auth,profiles,dependencies.adminPortal,dependencies.adminBroadcasts);
   registerVendorRoutes(app,dependencies.auth,profiles,dependencies.vendors,dependencies.operations,dependencies.food,dependencies.media);
   registerMediaRoutes(app,dependencies.auth,profiles,dependencies.media);
   registerChatRoutes(app,dependencies.auth,profiles,dependencies.chat);

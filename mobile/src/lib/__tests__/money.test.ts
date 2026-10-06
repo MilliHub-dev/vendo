@@ -24,7 +24,7 @@ describe('nairaToKobo', () => {
 });
 
 describe('cart totals', () => {
-  const line = (unitPriceKobo: number, quantity: number): CartLine => ({ menuItemId: `m-${unitPriceKobo}`, vendorId: 'v-1', name: 'Item', unitPriceKobo, quantity });
+  const line = (unitPriceKobo: number, quantity: number): CartLine => ({ key: 'k', menuItemId: `m-${unitPriceKobo}`, vendorId: 'v-1', name: 'Item', unitPriceKobo, quantity });
   const lines = [line(250_000, 2), line(70_000, 1)];
 
   it('counts items and sums the subtotal in kobo', () => {

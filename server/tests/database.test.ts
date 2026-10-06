@@ -31,6 +31,7 @@ test('account migration, profile constraints, concurrent bootstrap and read-only
   await db.exec(await readFile(new URL('../supabase/migrations/202610030010_operations_finance_chat.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/migrations/202610030011_media_storage.sql', import.meta.url), 'utf8'));
   await db.exec(await readFile(new URL('../supabase/migrations/202610030012_vendor_registration.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/202610060013_vendor_portal.sql', import.meta.url), 'utf8'));
   const repository = new PostgresProfileRepository({ query: (sql: string, values: unknown[]) => db.query(sql, values) } as unknown as pg.Pool);
   const id = randomUUID();
   const otherId = randomUUID();
@@ -104,4 +105,20 @@ test('account migration, profile constraints, concurrent bootstrap and read-only
   assert.equal((await db.query('SELECT * FROM public.saved_addresses')).rows.length, 0);
   assert.equal((await db.query('SELECT * FROM public.account_preferences')).rows.length, 0);
   await db.exec('RESET ROLE');
+});
+
+test('email identity onboards name then contact phone and preserves phone on reload', async (t) => {
+  const db = new PGlite(); t.after(() => db.close());
+  await db.exec(`CREATE ROLE anon; CREATE ROLE authenticated; CREATE ROLE service_role; CREATE SCHEMA auth;
+    CREATE TABLE auth.users(id uuid PRIMARY KEY);
+    CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql AS $$ SELECT NULL::uuid $$;`);
+  await db.exec(await readFile(new URL('../supabase/migrations/202610030001_accounts.sql', import.meta.url), 'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/202610060014_email_auth.sql', import.meta.url), 'utf8'));
+  const repo = new PostgresProfileRepository({ query: (sql: string, values: unknown[]) => db.query(sql, values) } as unknown as pg.Pool);
+  const id = randomUUID(); await db.query('INSERT INTO auth.users(id) VALUES($1)', [id]);
+  const initial = await repo.bootstrap(id, '', 'owner@example.com');
+  assert.equal(initial.email_verified, true); assert.equal(initial.phone, null); assert.equal(initial.onboarding_step, 'name_required');
+  assert.equal((await repo.setName(id, 'Store Owner')).onboarding_step, 'phone_required');
+  assert.equal((await repo.setPhone(id, '+2348030000000')).onboarding_step, 'complete');
+  assert.equal((await repo.bootstrap(id, '', 'owner@example.com')).phone, '+2348030000000');
 });

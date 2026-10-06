@@ -35,6 +35,24 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 120
         }
+      ],
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Vendo Rider uses your location, including in the background while you are online, to send you nearby deliveries and show customers where their order is.",
+          "locationWhenInUsePermission": "Vendo Rider uses your location to send you nearby deliveries and show customers where their order is.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true,
+          "isIosBackgroundLocationEnabled": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Vendo Rider needs your photos so you can upload your ID and vehicle documents.",
+          "cameraPermission": "Vendo Rider needs your camera so you can photograph your ID and vehicle documents."
+        }
       ]
     ],
     "experiments": {

@@ -1789,27 +1789,6 @@ svg {
 .chart--14 .chart__day {
   font-size: 11px;
 }
-.demo-logins {
-  display: grid;
-  gap: 6px;
-}
-.demo-logins button {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--heading);
-  font: inherit;
-  font-size: 13px;
-  cursor: pointer;
-  text-align: left;
-}
-.demo-logins button:hover {
-  border-color: var(--blue);
-}
 .pick {
   width: 100%;
   text-align: left;

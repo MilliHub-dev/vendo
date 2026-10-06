@@ -75,10 +75,10 @@ function OfferModal({ offer }: { offer: Offer }) {
           <View style={[styles.earn, { backgroundColor: colors.surfaceAlt }]}>
             <View style={{ flex: 1 }}>
               <Text variant="small" color="muted">
-                You’ll earn
+                {offer.earningKobo !== undefined ? 'You’ll earn' : offer.type === 'food' ? 'Food delivery' : 'Package delivery'}
               </Text>
-              <Text variant="display" color="primary">
-                {formatNaira(offer.earningKobo)}
+              <Text variant={offer.earningKobo !== undefined ? 'display' : 'heading'} color="primary">
+                {offer.earningKobo !== undefined ? formatNaira(offer.earningKobo) : offer.summary}
               </Text>
             </View>
             <Badge label={`${formatDistance(offer.tripDistanceM)} trip`} tone="muted" />

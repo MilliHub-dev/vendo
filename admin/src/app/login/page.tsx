@@ -2,33 +2,53 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { History, ShieldCheck, Users } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 
-import { api, apiMode } from "@/api/client";
-import { ALLOWED_DOMAIN, MOCK_PASSWORD, demoAdmins } from "@/api/mock/index.ts";
+import { api } from "@/api/client";
 import { useGate } from "@/components/AppShell";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button, Input, Spinner } from "@/components/ui";
-import { roleLabel } from "@/lib/permissions";
 import { isEmail } from "@/lib/validate";
-import { useSession } from "@/store/session";
 
+const COMPANY_EMAIL_DOMAIN = "vendoltd.com";
+const RESEND_SECONDS = 60;
+
+/** Staff sign-in: work email → 6-digit code sent to that address. No passwords. */
 export default function LoginPage() {
   const ok = useGate("signed_out");
-  const { signIn } = useSession();
+  const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
   const [touched, setTouched] = useState(false);
-  const login = useMutation({ mutationFn: () => api.login(email, password), onSuccess: ({ token, admin }) => signIn(token, admin) });
+  const [seconds, setSeconds] = useState(0);
+  const address = email.trim().toLowerCase();
+
+  const request = useMutation({
+    mutationFn: () => api.requestCode(address),
+    onSuccess: () => {
+      setStep("code");
+      setCode("");
+      setTouched(false);
+      setSeconds(RESEND_SECONDS);
+    },
+  });
+  const verify = useMutation({ mutationFn: () => api.verifyCode(address, code), onError: () => setCode("") });
+
+  useEffect(() => {
+    if (seconds <= 0) return;
+    const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
+    return () => clearTimeout(t);
+  }, [seconds]);
 
   if (!ok) return <Spinner />;
 
-  const emailError = !isEmail(email) ? "Enter your work email address" : !email.trim().toLowerCase().endsWith(`@${ALLOWED_DOMAIN}`) ? `Use your @${ALLOWED_DOMAIN} address` : null;
+  const emailError = !isEmail(email) ? "Enter your work email address" : null;
   const submit = (e: FormEvent) => {
     e.preventDefault();
     setTouched(true);
-    if (!emailError && password) login.mutate();
+    if (step === "email" && !emailError) request.mutate();
+    if (step === "code" && code.length === 6) verify.mutate();
   };
 
   return (
@@ -50,7 +70,7 @@ export default function LoginPage() {
             <Users /> Orders, riders, vendors and customers across every city
           </li>
           <li>
-            <ShieldCheck /> Each role sees only the actions it’s allowed to take
+            <ShieldCheck /> Access requires an active administrator account
           </li>
           <li>
             <History /> Every change is recorded in the audit log
@@ -64,28 +84,59 @@ export default function LoginPage() {
             <span className="eyebrow">Staff sign-in</span>
             <ThemeToggle />
           </div>
-          <h2>Sign in to Vendo Admin</h2>
-          <p className="muted">For Vendo staff only. Use your company email address.</p>
-          <Input label="Work email" type="email" placeholder={`you@${ALLOWED_DOMAIN}`} autoComplete="username" autoFocus value={email} onChange={(e) => setEmail(e.target.value)} error={touched ? emailError : null} />
-          <Input label="Password" type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} error={touched && !password ? "Enter your password" : login.isError ? login.error.message : null} />
-          <Button type="submit" block loading={login.isPending}>
-            Sign in
-          </Button>
-          {apiMode === "mock" ? (
-            <div className="note stack-sm">
-              <span className="small">
-                <strong className="strong">Demo mode.</strong> Pick a role to fill the form (password <code>{MOCK_PASSWORD}</code>):
-              </span>
-              <div className="demo-logins">
-                {demoAdmins.map((a) => (
-                  <button key={a.id} type="button" onClick={() => (setEmail(a.email), setPassword(MOCK_PASSWORD), login.reset())}>
-                    <span>{roleLabel[a.role]}</span>
-                    <span className="muted">{a.email}</span>
-                  </button>
-                ))}
+
+          {step === "email" ? (
+            <>
+              <h2>Sign in to Vendo Admin</h2>
+              <p className="muted">For Vendo staff only. We’ll email a 6-digit code to your company address.</p>
+              <Input
+                label="Work email"
+                type="email"
+                placeholder={`you@${COMPANY_EMAIL_DOMAIN}`}
+                autoComplete="username"
+                autoFocus
+                value={email}
+                onChange={(e) => (setEmail(e.target.value), request.isError && request.reset())}
+                error={touched && emailError ? emailError : request.isError ? request.error.message : null}
+              />
+              <Button type="submit" block loading={request.isPending}>
+                Send code
+              </Button>
+
+            </>
+          ) : (
+            <>
+              <h2>Enter the code</h2>
+              <p className="muted">
+                We emailed a 6-digit code to <strong className="strong">{address}</strong>.
+              </p>
+              <Input
+                label="Verification code"
+                className="otp"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                autoFocus
+                maxLength={6}
+                placeholder="••••••"
+                value={code}
+                onChange={(e) => (setCode(e.target.value.replace(/\D/g, "").slice(0, 6)), verify.isError && verify.reset())}
+                error={verify.isError ? verify.error.message : touched && code.length < 6 ? "Enter all 6 digits" : null}
+                hint="Check your spam folder if it hasn’t arrived."
+              />
+              <Button type="submit" block loading={verify.isPending}>
+                Sign in
+              </Button>
+              <div className="between">
+                <Button variant="ghost" size="sm" onClick={() => (setStep("email"), setCode(""), verify.reset())}>
+                  Use a different email
+                </Button>
+                <Button variant="ghost" size="sm" disabled={seconds > 0} loading={request.isPending} onClick={() => request.mutate()}>
+                  {seconds > 0 ? `Resend in ${seconds}s` : "Resend code"}
+                </Button>
               </div>
-            </div>
-          ) : null}
+              {request.isError ? <p className="text-danger">{request.error.message}</p> : null}
+            </>
+          )}
         </form>
       </section>
     </div>

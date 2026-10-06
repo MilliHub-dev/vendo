@@ -43,8 +43,8 @@ export default function CartScreen() {
       </View>
 
       {lines.map((line) => (
-        <View key={line.menuItemId} style={[styles.line, { backgroundColor: colors.surface, borderColor: colors.line }]}>
-          <Thumb emoji={line.emoji} size={84} />
+        <View key={line.key} style={[styles.line, { backgroundColor: colors.surface, borderColor: colors.line }]}>
+          <Thumb uri={line.imageUrl} emoji={line.emoji} size={84} />
           <View style={{ flex: 1, gap: 6 }}>
             <View style={styles.between}>
               <Text variant="bodyMedium" color="heading" style={{ flex: 1 }}>
@@ -54,14 +54,19 @@ export default function CartScreen() {
                 {formatNaira(line.unitPriceKobo * line.quantity)}
               </Text>
             </View>
+            {line.options ? (
+              <Text variant="small" color="muted" numberOfLines={2}>
+                {line.options}
+              </Text>
+            ) : null}
             {line.note ? (
               <Text variant="small" color="muted" numberOfLines={2}>
                 “{line.note}”
               </Text>
             ) : null}
             <View style={styles.between}>
-              <Stepper value={line.quantity} min={1} onChange={(q) => setQuantity(line.menuItemId, q)} label={line.name} />
-              <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${line.name}`} onPress={() => setQuantity(line.menuItemId, 0)} hitSlop={8} style={[styles.trash, { backgroundColor: colors.surfaceAlt }]}>
+              <Stepper value={line.quantity} min={1} onChange={(q) => setQuantity(line.key, q)} label={line.name} />
+              <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${line.name}`} onPress={() => setQuantity(line.key, 0)} hitSlop={8} style={[styles.trash, { backgroundColor: colors.surfaceAlt }]}>
                 <Trash2 size={18} color={colors.danger} />
               </Pressable>
             </View>

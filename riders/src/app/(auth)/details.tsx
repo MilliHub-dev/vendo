@@ -4,41 +4,43 @@ import { View } from 'react-native';
 
 import { api } from '@/api/client';
 import { Button, Input, Screen, Text } from '@/components/ui';
-import { isEmail, isName } from '@/lib/validate';
+import { normalisePhone } from '@/lib/phone';
+import { isName } from '@/lib/validate';
 import { useSession } from '@/store/session';
 import { spacing } from '@/theme';
 
-/** New riders only: name and email, then on to the rider application. */
+/** New riders only: name and phone number, then on to the rider application. */
 export default function DetailsScreen() {
   const { token, signIn } = useSession();
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [phoneInput, setPhoneInput] = useState('');
   const [touched, setTouched] = useState(false);
-  const signUp = useMutation({ mutationFn: () => api.completeSignUp({ name, email }), onSuccess: (user) => signIn(token!, user) });
+  const phone = normalisePhone(phoneInput);
+  const signUp = useMutation({ mutationFn: () => api.completeSignUp({ name, phone: phone! }), onSuccess: (user) => signIn(token!, user) });
 
   const submit = () => {
     setTouched(true);
-    if (isName(name) && isEmail(email)) signUp.mutate();
+    if (isName(name) && phone) signUp.mutate();
   };
 
   return (
     <Screen footer={<Button title="Continue" loading={signUp.isPending} onPress={submit} />}>
       <View style={{ gap: spacing.xs }}>
         <Text variant="display">About you</Text>
-        <Text color="muted">Use the name on your ID. Customers see your first name when you deliver to them.</Text>
+        <Text color="muted">Use the name on your ID. Customers see your first name, and call this number about their delivery.</Text>
       </View>
       <Input label="Full name" placeholder="e.g. Musa Ibrahim" value={name} onChangeText={setName} autoComplete="name" autoCapitalize="words" autoFocus error={touched && !isName(name) ? 'Enter your name' : null} />
       <Input
-        label="Email address"
-        placeholder="you@example.com"
-        value={email}
-        onChangeText={setEmail}
-        autoComplete="email"
-        keyboardType="email-address"
-        autoCapitalize="none"
+        label="Phone number"
+        placeholder="803 000 0000"
+        value={phoneInput}
+        onChangeText={setPhoneInput}
+        keyboardType="phone-pad"
+        autoComplete="tel"
         returnKeyType="done"
         onSubmitEditing={submit}
-        error={touched && !isEmail(email) ? 'Enter a valid email address' : null}
+        left={<Text variant="bodyMedium">🇳🇬 +234</Text>}
+        error={touched && !phone ? 'Enter a valid Nigerian mobile number' : null}
       />
       {signUp.isError ? <Text color="danger">{signUp.error.message}</Text> : null}
     </Screen>

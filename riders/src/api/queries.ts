@@ -1,8 +1,8 @@
-/** TanStack Query hooks — how screens read and change server data. Polling becomes realtime with the real backend. */
+/** TanStack Query hooks — how screens read and change server data. Things that change on their own are polled. */
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { api } from './client';
-import type { ChatMessage, DocumentKind, RegisterRiderRequest, Rider, WithdrawalRequest } from './types';
+import type { ChatMessage, DocumentFile, DocumentKind, RegisterRiderRequest, Rider, WithdrawalRequest } from './types';
 
 export const keys = {
   me: ['me'] as const,
@@ -22,19 +22,18 @@ export const keys = {
 export const useMe = () => useQuery({ queryKey: keys.me, queryFn: () => api.getMe() });
 export const useCities = () => useQuery({ queryKey: keys.cities, queryFn: () => api.listCities(), staleTime: Infinity });
 /** Polled so an approval (or suspension) made in the admin dashboard shows up without a restart. */
-export const useRider = (enabled = true) => useQuery({ queryKey: keys.rider, queryFn: () => api.getRider(), refetchInterval: 3000, enabled });
+export const useRider = (enabled = true) => useQuery({ queryKey: keys.rider, queryFn: () => api.getRider(), refetchInterval: 15_000, enabled });
 
 function useRiderMutation<T>(fn: (arg: T) => Promise<Rider>) {
   const client = useQueryClient();
   return useMutation({ mutationFn: fn, onSuccess: (rider) => client.setQueryData(keys.rider, rider) });
 }
 export const useRegisterRider = () => useRiderMutation((body: RegisterRiderRequest) => api.registerRider(body));
-export const useUploadDocument = () => useRiderMutation((kind: DocumentKind) => api.uploadDocument(kind));
-export const useSubmitApplication = () => useRiderMutation(() => api.submitApplication());
+export const useUploadDocument = () => useRiderMutation((v: { kind: DocumentKind; file: DocumentFile }) => api.uploadDocument(v.kind, v.file));
 export const useSetOnline = () => useRiderMutation((online: boolean) => api.setOnline(online));
 
-export const useOffer = (enabled: boolean) => useQuery({ queryKey: keys.offer, queryFn: () => api.getCurrentOffer(), refetchInterval: 1500, enabled });
-export const useJob = () => useQuery({ queryKey: keys.job, queryFn: () => api.getJob(), refetchInterval: 4000 });
+export const useOffer = (enabled: boolean) => useQuery({ queryKey: keys.offer, queryFn: () => api.getCurrentOffer(), refetchInterval: 4000, enabled });
+export const useJob = () => useQuery({ queryKey: keys.job, queryFn: () => api.getJob(), refetchInterval: 8000 });
 
 export function useRespondToOffer() {
   const client = useQueryClient();
@@ -63,7 +62,7 @@ export function useAdvanceJob() {
   });
 }
 
-export const useMessages = (enabled: boolean) => useQuery({ queryKey: keys.messages, queryFn: () => api.listMessages(), refetchInterval: 2000, enabled });
+export const useMessages = (enabled: boolean) => useQuery({ queryKey: keys.messages, queryFn: () => api.listMessages(), refetchInterval: 4000, enabled });
 export function useSendMessage() {
   const client = useQueryClient();
   return useMutation({
@@ -76,7 +75,8 @@ export const useTrips = () => useQuery({ queryKey: keys.trips, queryFn: () => ap
 export const useTrip = (id: string) => useQuery({ queryKey: keys.trip(id), queryFn: () => api.getTrip(id) });
 export const useEarnings = () => useQuery({ queryKey: keys.earnings, queryFn: () => api.getEarnings() });
 export const useBanks = () => useQuery({ queryKey: keys.banks, queryFn: () => api.listBanks(), staleTime: Infinity });
-export const useWithdrawals = () => useQuery({ queryKey: keys.withdrawals, queryFn: () => api.listWithdrawals(), refetchInterval: 5000 });
+export const useWithdrawals = () => useQuery({ queryKey: keys.withdrawals, queryFn: () => api.listWithdrawals(), refetchInterval: 30_000 });
+export const usePayoutAccount = () => useQuery({ queryKey: ['payout-account'], queryFn: () => api.getPayoutAccount() });
 export const useNotifications = () => useQuery({ queryKey: keys.notifications, queryFn: () => api.listNotifications() });
 
 export function useRequestWithdrawal() {
@@ -85,6 +85,7 @@ export function useRequestWithdrawal() {
     mutationFn: (body: WithdrawalRequest) => api.requestWithdrawal(body),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: keys.withdrawals });
+      client.invalidateQueries({ queryKey: ['payout-account'] });
       client.invalidateQueries({ queryKey: keys.earnings });
     },
   });
