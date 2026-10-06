@@ -14,7 +14,9 @@ test('Verification email keeps its code, expiry and safety instructions in HTML 
 test('Notification emails escape content, preserve newlines and use authoritative event details', () => {
   const email = notificationEmail({ kind: 'refund', title: '<img src=x onerror=alert(1)>', body: 'Refund approved & recorded.\n<script>alert(1)</script>', order_id: 'order-reference' });
   assert.ok(!email.html.includes('<script>'));
-  assert.ok(!email.html.includes('<img'));
+  assert.ok(!email.html.includes('<img src=x'));
+  assert.equal(email.html.split('<img').length - 1, 1, 'the only image is the Vendo logo');
+  assert.ok(email.html.includes('https://www.vendoltd.com/brand/logo-white.png'));
   assert.match(email.html, /&lt;script&gt;/);
   assert.match(email.html, /&amp;/);
   assert.match(email.html, /<br>/);
