@@ -53,6 +53,13 @@
           "photosPermission": "Vendo Rider needs your photos so you can upload your ID and vehicle documents.",
           "cameraPermission": "Vendo Rider needs your camera so you can photograph your ID and vehicle documents."
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#0064FF",
+          "defaultChannel": "offers"
+        }
       ]
     ],
     "experiments": {

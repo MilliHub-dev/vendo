@@ -25,24 +25,30 @@ Only these were checked, in a browser against the live API: the welcome and emai
 
 ### What the server and operations still need
 
-- **Email sign-in routes deployed** (`/v1/auth/email/otp/*`, `PATCH /v1/me/phone`), and Supabase set up to email the code.
-- **A matching policy per city** (`PUT /v1/admin/cities/:id/matching-policy`). Without one no rider can go online.
-- **A finance policy per city** (rider pay rules, minimum withdrawal) and the Paystack key, or earnings and withdrawals won't work.
-- **Private storage bucket** `vendo-documents` (`npm run storage:setup` in `server/`), or document uploads fail.
-- **An admin to approve riders.** The admin dashboard isn't connected to the server yet.
+- **Deploy the server's rider-app module** (`server/src/modules/rider-app`, not pushed yet). It adds `GET /v1/riders/me/summary` (rating, trip count, acceptance rate, minimum withdrawal, and what the current offer or delivery pays), `GET /v1/riders/me/trips` (completed deliveries with route and pay) and `GET /v1/payout-banks` (Paystack's bank list). Until it is live the app still works: it leaves the pay off offers, shows history from the earnings ledger, and uses the bundled bank list.
+- **A matching policy and a finance policy for each city.** None exist. Without a matching policy no rider can go online; without a finance policy offers can't show pay, nothing is settled and withdrawals are refused. Set them from the admin dashboard, or run `npm run db:test-policies -- --apply` in `server/` for placeholder values.
+- **The Paystack key on the server**, for the bank list, account checks and payouts.
+- **Supabase set up to email the sign-in code** (template showing `{{ .Token }}`, custom SMTP).
+- An admin approves riders from the admin dashboard.
 
-### Things the screens can't show yet because the server doesn't send them
+Done: email sign-in is deployed, and the private `vendo-documents` bucket for rider documents exists.
 
-- **What a delivery pays, on the offer and during the job.** The rider only sees the amount after delivery, in Earnings. This should be fixed on the server before launch: riders need to know the pay before accepting.
-- **Trip details in history** (pickup, drop-off, distance): history is built from the earnings ledger, which has the amount and time only.
-- **Rating, total trips, acceptance rate.**
+### Push notifications
+
+`src/lib/push.ts` registers an approved rider's phone with the server (`POST /v1/me/devices`) and removes it on sign-out; the server already pushes new offers through Firebase. To make it work in a build:
+
+1. Download `google-services.json` for the Android app `com.vendoltd.rider` from the Firebase project the server uses, put it in `riders/`, and add `"googleServicesFile": "./google-services.json"` under `android` in `app.json`.
+2. Build with EAS (it doesn't work in Expo Go or the browser).
+
+iPhones aren't covered: the server sends through Firebase and can't use Apple's tokens directly. Without push, a rider only sees an offer while the app is open (it checks every 4 seconds).
+
+### Still not shown
+
 - **The customer's name and phone on food orders** (by design: riders use the in-app chat).
-- **The minimum withdrawal** and **how many delivery-code tries are left**: the server enforces both and returns a message.
-- **The bank list**: `src/lib/banks.ts` is a fixed list of major banks with Paystack codes. Check it against Paystack's list, or have the server serve it.
 
 ### Before a store release
 
-- **Push notifications**: without them a rider only hears about an offer while the app is open. Register the device (`POST /v1/me/devices`) and have the server push new offers.
 - **Background location review**: Google Play and the App Store both review "always" location. The permission texts are in `app.json`; the store listings need a matching explanation.
 - **Map**: `components/RouteMap.tsx` is a drawn stand-in; "Navigate" opens the phone's maps app.
-- **A build on a real phone**: location, the camera and background tasks only work in a development or release build, not in the browser preview. No EAS build has completed yet.
+- **A build on a real phone**: location, the camera, push and background tasks only work in a development or release build, not in the browser preview. No EAS build has completed yet.
+- **A first real run.** Nothing past the sign-in screen has been exercised with a real rider account.

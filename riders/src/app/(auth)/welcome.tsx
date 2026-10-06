@@ -9,7 +9,7 @@ import { radius, spacing, useTheme } from '@/theme';
 
 const points: { icon: LucideIcon; text: string }[] = [
   { icon: Clock, text: 'Go online when it suits you' },
-  { icon: Banknote, text: 'See the pickup and drop-off before you accept' },
+  { icon: Banknote, text: 'See the route and what you’ll earn before you accept' },
   { icon: ShieldCheck, text: 'Withdraw to any Nigerian bank' },
 ];
 

@@ -1,4 +1,5 @@
 import { registerAdminPortalRoutes } from './modules/admin-portal/routes.js';
+import { registerRiderAppRoutes } from './modules/rider-app/routes.js';
 import type { AdminPortalRepository } from './modules/admin-portal/repository.js';
 import { randomUUID } from 'node:crypto';
 import Fastify from 'fastify';
@@ -78,6 +79,8 @@ export interface Dependencies {
   orders: OrderRepository;
   addresses: AddressRepository;
   adminBroadcasts?: import('./modules/admin-portal/broadcasts.js').AdminBroadcasts;
+  riderApp?: import('./modules/rider-app/repository.js').RiderAppRepository;
+  payoutBanks?: import('./modules/rider-app/banks.js').PayoutBanks;
   adminPortal?: AdminPortalRepository;
   geocoder: Geocoder;
   dispatch: DispatchRepository;
@@ -157,6 +160,7 @@ export async function buildApp(env: Env, dependencies: Dependencies) {
   app.get('/openapi.json', { schema: { hide: true } }, async () => app.swagger());
   const profiles = new ProfileService(dependencies.profiles);
   registerAdminPortalRoutes(app,dependencies.auth,profiles,dependencies.adminPortal,dependencies.adminBroadcasts);
+  registerRiderAppRoutes(app, dependencies.auth, profiles, dependencies.riderApp, dependencies.payoutBanks);
   registerVendorRoutes(app,dependencies.auth,profiles,dependencies.vendors,dependencies.operations,dependencies.food,dependencies.media);
   registerMediaRoutes(app,dependencies.auth,profiles,dependencies.media);
   registerChatRoutes(app,dependencies.auth,profiles,dependencies.chat);

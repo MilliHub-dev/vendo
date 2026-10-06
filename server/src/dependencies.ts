@@ -1,4 +1,6 @@
 import { AdminBroadcasts } from './modules/admin-portal/broadcasts.js';
+import { PostgresRiderAppRepository } from './modules/rider-app/repository.js';
+import { createPaystackBanks } from './modules/rider-app/banks.js';
 import { PostgresAdminPortalRepository } from './modules/admin-portal/repository.js';
 import type { Env } from './config/env.js';
 import { ApiError } from './lib/errors.js';
@@ -70,6 +72,8 @@ export async function createDependencies(env: Env): Promise<Dependencies> {
     payments: pool ? new PostgresPaymentRepository(pool) : { prepare: unavailable, initialized: unavailable, review: unavailable, find: unavailable, apply: unavailable, wallet: unavailable, history: unavailable, checkout: unavailable, enqueue: unavailable, pending: unavailable, finishEvents: unavailable, refundWallets: unavailable, reconcileRefund: unavailable },
     paymentGateway: env.PAYSTACK_SECRET_KEY ? createPaystackGateway(env.PAYSTACK_SECRET_KEY, env.PAYSTACK_CALLBACK_URL) : { configured: false, initialize: unavailable, verify: unavailable, verifyRefund: unavailable },
     ...(pool ? {adminPortal: new PostgresAdminPortalRepository(pool),adminBroadcasts:new AdminBroadcasts(pool)} : {}),
+    ...(pool ? { riderApp: new PostgresRiderAppRepository(pool) } : {}),
+    ...(env.PAYSTACK_SECRET_KEY ? { payoutBanks: createPaystackBanks(env.PAYSTACK_SECRET_KEY) } : {}),
     orders: pool ? new PostgresOrderRepository(pool) : { events: unavailable, receipt: unavailable, cancellation: unavailable, cancel: unavailable, reschedule: unavailable, dispute: unavailable, resolveDispute: unavailable, rating: unavailable, savePolicy: unavailable, policy: unavailable, riderAction: unavailable, processDue: unavailable },
     addresses: pool ? new PostgresAddressRepository(pool) : { cities: unavailable, city: unavailable, saveBoundary: unavailable, list: unavailable, get: unavailable, save: unavailable, delete: unavailable, preferredCity: unavailable, setCity: unavailable },
     geocoder: env.PHOTON_BASE_URL ? createPhotonGeocoder(env.PHOTON_BASE_URL) : { search: unavailable, reverse: unavailable },
