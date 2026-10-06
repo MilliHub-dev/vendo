@@ -4,6 +4,7 @@
  * the server's contract is in server/docs/openapi.json.
  */
 import { openPaymentPage } from '@/lib/pay';
+import { unregisterPush } from '@/lib/push';
 import { useCity } from '@/store/city';
 
 import type { ApiClient } from '../client';
@@ -156,6 +157,7 @@ export const httpApi: ApiClient = {
     return (await getMe()).user;
   },
   async signOut() {
+    await unregisterPush();
     await request('POST', '/v1/auth/logout', { body: { scope: 'local' } }).catch(() => {});
     myId = null;
     await saveTokens(null);

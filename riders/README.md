@@ -37,7 +37,7 @@ Done: email sign-in is deployed, and the private `vendo-documents` bucket for ri
 
 `src/lib/push.ts` registers an approved rider's phone with the server (`POST /v1/me/devices`) and removes it on sign-out; the server already pushes new offers through Firebase. To make it work in a build:
 
-1. Download `google-services.json` for the Android app `com.vendoltd.rider` from the Firebase project the server uses, put it in `riders/`, and add `"googleServicesFile": "./google-services.json"` under `android` in `app.json`.
+1. Download `google-services.json` for the Android app `com.vendoltd.rider` from the Firebase project the server uses (`FCM_PROJECT_ID`, currently `vendo-83f99`), put it in `riders/`, and add `"googleServicesFile": "./google-services.json"` under `android` in `app.json`.
 2. Build with EAS (it doesn't work in Expo Go or the browser).
 
 iPhones aren't covered: the server sends through Firebase and can't use Apple's tokens directly. Without push, a rider only sees an offer while the app is open (it checks every 4 seconds).

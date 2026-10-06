@@ -6,22 +6,21 @@ import { Platform } from 'react-native';
 import { request } from '@/api/http/request';
 
 /**
- * Push notifications, so a rider hears about a delivery offer when the app isn't on screen.
- * The server sends through Firebase (FCM), which on Android needs the app built with the
- * project's google-services.json (see README). iPhones aren't covered yet: the server can't
- * send to Apple's tokens directly.
+ * Push notifications: order updates (accepted, rider assigned, on the way, delivered) and
+ * announcements, when the app isn't open. The server sends through Firebase (FCM), which on
+ * Android needs the app built with the project's google-services.json (see README).
+ * iPhones aren't covered yet: the server can't send to Apple's tokens directly.
  */
-const DEVICE_KEY = 'vendo.rider.push-device';
-const OFFERS_CHANNEL = 'rider-offers'; // the channel ID the server sends offers to
+const DEVICE_KEY = 'vendo.push-device';
 
-// an offer arriving while the app is open should still make a sound and show a banner
+// a notification arriving while the app is open still shows as a banner
 Notifications.setNotificationHandler({ handleNotification: async () => ({ shouldPlaySound: true, shouldSetBadge: false, shouldShowBanner: true, shouldShowList: true }) });
 
 /** Asks permission (once), gets this phone's push token and gives it to the server. Safe to call on every launch. */
 export async function registerForPush(): Promise<void> {
   if (Platform.OS !== 'android' || !Device.isDevice) return;
   try {
-    await Notifications.setNotificationChannelAsync(OFFERS_CHANNEL, { name: 'Delivery offers', importance: Notifications.AndroidImportance.MAX, vibrationPattern: [0, 400, 200, 400], lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC });
+    await Notifications.setNotificationChannelAsync('default', { name: 'Order updates', importance: Notifications.AndroidImportance.HIGH });
     const current = await Notifications.getPermissionsAsync();
     const granted = current.granted || (current.canAskAgain && (await Notifications.requestPermissionsAsync()).granted);
     if (!granted) return;
@@ -29,7 +28,7 @@ export async function registerForPush(): Promise<void> {
     const device = await request<{ id: string }>('POST', '/v1/me/devices', { body: { token, platform: 'android' } });
     await AsyncStorage.setItem(DEVICE_KEY, device.id);
   } catch {
-    // no Firebase config in this build, or no network: offers still arrive while the app is open
+    // no Firebase config in this build, or no network: the in-app notifications list still works
   }
 }
 
@@ -44,3 +43,12 @@ export async function unregisterPush(): Promise<void> {
     // the server also drops tokens that stop working
   }
 }
+
+/** The order a tapped notification is about, if any. */
+export const orderIdOf = (response: Notifications.NotificationResponse): string | null => {
+  // FCM data arrives under different keys depending on whether the app was open
+  const content = response.notification.request.content;
+  const data = (content.data ?? {}) as Record<string, unknown>;
+  const id = data.order_id;
+  return typeof id === 'string' && /^[0-9a-f-]{36}$/i.test(id) ? id : null;
+};

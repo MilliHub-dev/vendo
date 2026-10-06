@@ -63,7 +63,7 @@ Everything that needs a signed-in account was written against the server's contr
 ### Before a store release
 
 - **Map**: `components/RouteMap.tsx` is a drawn stand-in. Mapbox needs a token and a development build.
-- **Push notifications**: the app doesn't register the device with the server yet (`POST /v1/me/devices`).
+- **Push notifications**: `src/lib/push.ts` registers the phone with the server after sign-in and removes it on sign-out; tapping an order notification opens that order. For it to work, download `google-services.json` for the Android app `com.vendoltd.vendo` from the Firebase project the server uses (`FCM_PROJECT_ID`), put it in `mobile/`, add `"googleServicesFile": "./google-services.json"` under `android` in `app.json`, and make a new EAS build. Android only: the server can't send to iPhones yet.
 - **Live updates**: orders, tracking and chat are polled every few seconds; the server's streams aren't used.
 - **Store listing items**: app icons and splash are in place; privacy policy and terms on vendoltd.com are still drafts.
 - **A build on a real phone**: so far the app has only been run in a browser. No EAS build has completed.

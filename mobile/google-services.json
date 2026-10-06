@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "157353582062",
+    "project_id": "vendo-83f99",
+    "storage_bucket": "vendo-83f99.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157353582062:android:b4e0a2716053dfdfcfc2ff",
+        "android_client_info": {
+          "package_name": "com.vendoltd.rider"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBIaWNvVoUznduAzBUvBReO6TMffm_LRGU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:157353582062:android:670214135177733ccfc2ff",
+        "android_client_info": {
+          "package_name": "com.vendoltd.vendo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBIaWNvVoUznduAzBUvBReO6TMffm_LRGU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

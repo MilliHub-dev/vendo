@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import { AnimatedSplash } from '@/components/AnimatedSplash';
 import { ConfirmHost } from '@/components/ConfirmHost';
+import { PushHost } from '@/components/PushHost';
 import { useIsSignedIn, useSessionReady } from '@/store/session';
 import { fonts, ThemeProvider, useTheme } from '@/theme';
 
@@ -29,6 +30,7 @@ export default function RootLayout() {
         <ThemeProvider>
           <RootStack />
           <ConfirmHost />
+          <PushHost />
           <AnimatedSplash />
         </ThemeProvider>
       </QueryClientProvider>
