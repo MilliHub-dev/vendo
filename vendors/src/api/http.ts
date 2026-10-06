@@ -10,7 +10,9 @@ const nameOfBank = (code: string) => liveBanks?.find(b => b.code === code)?.name
 const request = createTransport(process.env.NEXT_PUBLIC_API_URL ?? 'https://api.vendoltd.com', { get: () => ({token:useSession.getState().token,refreshToken:useSession.getState().refreshToken,accountId:useSession.getState().user?.id ?? null}), save: tokens => useSession.getState().setTokens(tokens), clear: () => useSession.getState().signOut() });
 async function storeId() { const s = useSession.getState().store; if (!s || s.approval !== 'approved') throw new Error('Choose an approved store first.'); return s.id; }
 async function path(suffix = '') { return `/v1/vendor/stores/${await storeId()}${suffix}`; }
-async function all(endpoint: string): Promise<Row[]> { const rows: Row[]=[]; for(let offset=0;offset<=10000;offset+=100){ const page=array(await request(`${endpoint}${endpoint.includes('?')?'&':'?'}limit=100&offset=${offset}`)).map(object);rows.push(...page); if(page.length<100) return rows; } throw new Error('Too many records. Refine the selection.'); }
+// 50 is the largest page every list endpoint accepts (withdrawals and notifications cap there)
+const PAGE=50;
+async function all(endpoint: string): Promise<Row[]> { const rows: Row[]=[]; for(let offset=0;offset<=10000;offset+=PAGE){ const page=array(await request(`${endpoint}${endpoint.includes('?')?'&':'?'}limit=${PAGE}&offset=${offset}`)).map(object);rows.push(...page); if(page.length<PAGE) return rows; } throw new Error('Too many records. Refine the selection.'); }
 async function portal() { return object(await request(await path('/portal'))); }
 let withdrawalKey: { payload: string; key: string } | null = null;
 let registrationKey: { payload: string; key: string } | null = null;
@@ -27,7 +29,7 @@ export const api: ApiClient = {
   const me=object(await request('/v1/me'));
   if (me.onboarding_step!=='complete') return null;
   if (!['customer','vendor_staff'].includes(string(me.role))) throw new Error('This account cannot access the vendor portal.');
-  if(me.role==='vendor_staff') { const stores=array(await request('/v1/vendor/stores?limit=100')).map(object); const selected=stores.find(s=>s.id===useSession.getState().selectedStoreId&&s.is_active) ?? stores.find(s=>s.is_active) ?? stores[0];if(selected){const s=store(selected); if(s.approval==='approved'){const data=object(await request(`/v1/vendor/stores/${s.id}/portal`));s.commissionRate=data.commission_rate==null?null:number(data.commission_rate);s.tier=string(data.tier)||'Not assigned';s.ratingCount=number(data.rating_count);}return s;} }
+  if(me.role==='vendor_staff') { const stores=array(await request('/v1/vendor/stores?limit=50')).map(object); const selected=stores.find(s=>s.id===useSession.getState().selectedStoreId&&s.is_active) ?? stores.find(s=>s.is_active) ?? stores[0];if(selected){const s=store(selected); if(s.approval==='approved'){const data=object(await request(`/v1/vendor/stores/${s.id}/portal`));s.commissionRate=data.commission_rate==null?null:number(data.commission_rate);s.tier=string(data.tier)||'Not assigned';s.ratingCount=number(data.rating_count);}return s;} }
   const result=await request('/v1/vendor/registration');return result?application(object(result)):null;
  },
  async registerStore(body: RegisterStoreRequest) { const payload={name:body.name,category:body.category,cuisine:body.cuisine,description:body.description,city_id:body.cityId,address:body.address,location:body.location,opening_hours:body.hours};const signature=JSON.stringify(payload);if(registrationKey?.payload!==signature)registrationKey={payload:signature,key:crypto.randomUUID()}; const result=application(object(await request('/v1/vendor/registration','POST',payload,true,registrationKey.key)));if(!result)throw new Error('Application could not be loaded.');return result; },
@@ -49,5 +51,5 @@ export const api: ApiClient = {
  async saveBankAccount(account) { await request(`/v1/earnings/vendor/${await storeId()}/bank`,'PUT',{bank_code:account.bankCode,account_number:account.accountNumber});return this.getPayouts(); },
  async requestWithdrawal(amountKobo) { const id=await storeId(),payload=`${id}:${amountKobo}`;if(withdrawalKey?.payload!==payload)withdrawalKey={payload,key:crypto.randomUUID()};await request(`/v1/earnings/vendor/${id}/withdrawals`,'POST',{amount_kobo:amountKobo},true,withdrawalKey.key);withdrawalKey=null; },
  async listReviews() { return array((await portal()).reviews) as Review[]; },
- async listNotifications() { const r=object(await request('/v1/me/notifications?limit=100'));return array(r.items).map(v=>{const n=object(v);return {id:string(n.id),title:string(n.title),body:string(n.body),createdAt:string(n.created_at)};}); },
+ async listNotifications() { const r=object(await request('/v1/me/notifications?limit=50'));return array(r.items).map(v=>{const n=object(v);return {id:string(n.id),title:string(n.title),body:string(n.body),createdAt:string(n.created_at)};}); },
 };
