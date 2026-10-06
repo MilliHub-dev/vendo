@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "node --import tsx --test tests/*.test.ts",
+    "db:seed": "node --import tsx --env-file-if-exists=.env scripts/seed.ts",
     "db:migrate": "node --import tsx --env-file-if-exists=.env scripts/migrate.ts",
     "openapi": "node --import tsx scripts/openapi.ts",
     "orders:process": "node --import tsx --env-file-if-exists=.env scripts/process-orders.ts",
