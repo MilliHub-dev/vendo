@@ -3,7 +3,7 @@ import type { Dashboard, Review, Payouts, RegisterStoreRequest } from './types';
 import { createTransport, type Tokens } from './transport';
 import { useSession } from '../store/session';
 
-import { object, string, number, array, user, store, application, item, order, type Row } from './dto';
+import { object, string, number, array, user, store, application, item, order, cities, type Row } from './dto';
 import { bankName, banks as bundledBanks } from '../lib/banks';
 let liveBanks: { code: string; name: string }[] | null = null;
 const nameOfBank = (code: string) => liveBanks?.find(b => b.code === code)?.name ?? bankName(code);
@@ -20,7 +20,8 @@ export const api: ApiClient = {
  async completeSignUp(details) { await request('/v1/me/name','PATCH',{name:details.name});const me=object(await request('/v1/me/phone','PATCH',{phone:details.phone}));return user(me); },
  async getMe() { return user(object(await request('/v1/me'))); },
  async logout() { try { await request('/v1/auth/logout','POST',{scope:'local'}); } finally { useSession.getState().signOut(); } },
- async listCities() { return array(await request('/v1/cities','GET',undefined,false)).map(v=>{const r=object(v);return {id:string(r.id),name:string(r.name)};}); },
+ async listCities() { return cities(await request('/v1/cities','GET',undefined,false)); },
+ async searchPlaces(cityId, query) { const r=object(await request(`/v1/maps/search?city_id=${encodeURIComponent(cityId)}&q=${encodeURIComponent(query.trim())}&limit=6`));return array(r.items).map(v=>{const p=object(v),at=object(p.location),name=string(p.name),address=string(p.address);return {label:address.toLowerCase().startsWith(name.toLowerCase())?address:[name,address].filter(Boolean).join(', '),lat:number(at.lat),lng:number(at.lng)};}); },
  async listStores() { return (await all('/v1/vendor/stores')).map(store); },
  async getStore() {
   const me=object(await request('/v1/me'));

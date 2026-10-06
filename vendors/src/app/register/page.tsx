@@ -9,12 +9,14 @@ import { defaultHours } from "@/lib/hours";
 import { useCities, useRegisterStore, useStore } from "@/api/queries";
 import type { DayHours, Store, StoreCategory } from "@/api/types";
 import { useGate, useStoreSync } from "@/components/AppShell";
+import { PickupPoint } from "@/components/PickupPoint";
 import { HoursEditor } from "@/components/HoursEditor";
 import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button, Input, Spinner, Textarea } from "@/components/ui";
 import { storeCategories, SUPPORT_WHATSAPP } from "@/lib/categories";
 import { summariseHours } from "@/lib/orders";
+import { stateOf } from "@/lib/states";
 import { useSession } from "@/store/session";
 
 /** Store registration: your store → location and hours → under review. Shown until the store is approved. */
@@ -31,7 +33,10 @@ export default function RegisterPage() {
   const [category, setCategory] = useState<StoreCategory>("restaurant");
   const [cuisine, setCuisine] = useState("");
   const [description, setDescription] = useState("");
+  const [state, setState] = useState("");
   const [cityId, setCityId] = useState("");
+  const [locating, setLocating] = useState(false);
+  const [locationError, setLocationError] = useState<string | null>(null);
   const [address, setAddress] = useState("");
   const [latitude, setLatitude] = useState("");
   const [longitude, setLongitude] = useState("");
@@ -52,9 +57,34 @@ export default function RegisterPage() {
       setStep(2);
     }
   };
-  const submit = () => {
+  const states = [...new Set((cities.data ?? []).map((c) => stateOf(c.name)))].sort();
+  const citiesInState = (cities.data ?? []).filter((c) => stateOf(c.name) === state);
+  const chooseState = (next: string) => {
+    setState(next);
+    const inState = (cities.data ?? []).filter((c) => stateOf(c.name) === next);
+    setCityId(inState.length === 1 ? inState[0].id : ""); // one Vendo city in the state: no second question
+    setLatitude("");
+    setLongitude("");
+  };
+  const submit = async () => {
     setTouched(true);
-    if (cityId && address.trim().length >= 5 && locationValid && hours.some((d) => d.open)) register.mutate({ name, category, cuisine: cuisine.trim(), description: description.trim(), cityId, address, hours, location: { lat: Number(latitude), lng: Number(longitude) } }, {onSuccess:()=>setReapplying(false)});
+    setLocationError(null);
+    if (!cityId || address.trim().length < 5 || !hours.some((d) => d.open)) return;
+    let location = locationValid ? { lat: Number(latitude), lng: Number(longitude) } : null;
+    if (!location) {
+      // no pickup point chosen: find it from the address the vendor typed
+      setLocating(true);
+      try {
+        const found = (await api.searchPlaces(cityId, address))[0];
+        if (found) location = { lat: found.lat, lng: found.lng };
+      } catch {
+        // falls through to the message below
+      } finally {
+        setLocating(false);
+      }
+    }
+    if (!location) return setLocationError("We couldn’t find that address on the map. Under “Pickup point”, search for your street or a nearby landmark, or use your location if you’re at the store.");
+    register.mutate({ name, category, cuisine: cuisine.trim(), description: description.trim(), cityId, address, hours, location }, { onSuccess: () => setReapplying(false) });
   };
 
   return (
@@ -121,22 +151,32 @@ export default function RegisterPage() {
             <p className="muted">Riders collect orders from this address during these hours.</p>
           </div>
           <div className="field">
-            <span className="label">City</span>
-            <div className="wrap" role="radiogroup" aria-label="City">
-              {cities.data?.map((c) => (
-                <button key={c.id} type="button" role="radio" className="chip" aria-checked={cityId === c.id} onClick={() => setCityId(c.id)}>
-                  {c.name}
-                </button>
+            <label htmlFor="state">State</label>
+            <select id="state" className="select" value={state} onChange={(e) => chooseState(e.target.value)} aria-invalid={(touched && !cityId) || undefined}>
+              <option value="">{cities.isPending ? "Loading…" : "Select your state"}</option>
+              {states.map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
               ))}
-            </div>
-            {touched && !cityId ? <span className="field__error">Choose your city</span> : null}
+            </select>
+            {cities.isError ? <span className="field__error">We couldn’t load the list. {cities.error.message}</span> : cities.data?.length === 0 ? <span className="field__hint">Vendo isn’t open for new stores in any state yet.</span> : touched && !state ? <span className="field__error">Select your state</span> : <span className="field__hint">Vendo currently delivers in these states.</span>}
           </div>
+          {citiesInState.length > 1 ? (
+            <div className="field">
+              <span className="label">City</span>
+              <div className="wrap" role="radiogroup" aria-label="City">
+                {citiesInState.map((c) => (
+                  <button key={c.id} type="button" role="radio" className="chip" aria-checked={cityId === c.id} onClick={() => setCityId(c.id)}>
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+              {touched && !cityId ? <span className="field__error">Choose your city</span> : null}
+            </div>
+          ) : null}
           <Textarea label="Store address" placeholder="Street, area and a nearby landmark" maxLength={140} value={address} onChange={(e) => setAddress(e.target.value)} error={touched && address.trim().length < 5 ? "Enter your store address" : null} />
-          <div className="grid-2"><Input label="Store latitude" value={latitude} onChange={e=>setLatitude(e.target.value)} inputMode="decimal" /><Input label="Store longitude" value={longitude} onChange={e=>setLongitude(e.target.value)} inputMode="decimal" /></div>
-          <Button variant="secondary" onClick={()=>navigator.geolocation.getCurrentPosition(p=>{setLatitude(String(p.coords.latitude));setLongitude(String(p.coords.longitude));},()=>alert('Location unavailable. Enter the coordinates of your store.'))}>Use my current location</Button>
-          <p className="small muted">Use your store’s exact pickup location, inside the selected service city.</p>
-          {touched && !locationValid ? <p className="text-danger">Enter valid store coordinates.</p> : null}
-          {cities.isError ? <p className="text-danger">{cities.error.message}</p> : null}
+          <PickupPoint intro="Optional. Search for your street or a landmark so riders find you easily. If you skip this, we find it from the address above." cityId={cityId} latitude={latitude} longitude={longitude} onChange={(lat, lng) => (setLatitude(lat), setLongitude(lng))} onPick={(label) => !address.trim() && setAddress(label)} error={locationError} />
           <div className="field">
             <span className="label">Opening hours</span>
             <HoursEditor value={hours} onChange={setHours} />
@@ -147,7 +187,7 @@ export default function RegisterPage() {
             <Button variant="secondary" onClick={() => setStep(1)}>
               Back
             </Button>
-            <Button loading={register.isPending} onClick={submit}>
+            <Button loading={register.isPending || locating} onClick={() => void submit()}>
               Submit for review
             </Button>
           </div>

@@ -19,3 +19,11 @@ export function order(r: Row): Order {
  const states: Record<string, Order['status']> = { awaiting_vendor: 'new', searching_rider: 'preparing', rider_assigned: 'preparing', picked_up: 'picked_up', on_the_way: 'picked_up', delivered: 'delivered', cancelled: 'cancelled', disputed: 'disputed' };
  return { id: string(r.id), code: string(r.code), status: r.vendor_ready_at && ['searching_rider','rider_assigned'].includes(status) ? 'ready' : states[status] ?? 'pending', customerName: 'Customer', items: array(quote.items).map(v => { const i=object(v); return {name:string(i.name),quantity:number(i.quantity),unitPriceKobo:number(i.unit_price_kobo),note:string(i.note)}; }), subtotalKobo:number(quote.subtotal_kobo), commissionKobo:r.vendor_commission_kobo==null?null:number(r.vendor_commission_kobo),payoutKobo:r.vendor_commission_kobo==null?null:number(quote.subtotal_kobo)-number(r.vendor_commission_kobo),respondBy:string(r.vendor_response_due_at)||undefined,createdAt:string(r.created_at),prepMinutes:r.vendor_prep_minutes == null ? undefined : number(r.vendor_prep_minutes),readyBy:r.vendor_prep_minutes&&r.vendor_accepted_at?new Date(Date.parse(string(r.vendor_accepted_at))+number(r.vendor_prep_minutes)*60000).toISOString():undefined,rejectReason:string(r.vendor_rejection_reason) || undefined };
 }
+/**
+ * The server answers GET /v1/cities with `{ items: [...] }`. Only cities that are switched on and have a
+ * service area can take a store, so the others are left out of the list a vendor chooses from.
+ */
+export function cities(value: unknown): { id: string; name: string }[] {
+ const list = Array.isArray(value) ? value : array(object(value).items);
+ return list.map(object).filter(c => c.is_active !== false && c.service_area_configured !== false).map(c => ({ id: string(c.id), name: string(c.name) }));
+}

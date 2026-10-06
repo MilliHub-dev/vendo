@@ -26,6 +26,8 @@ export interface ApiClient {
 
   // the store
   listCities(): Promise<City[]>;
+  /** Finds streets and landmarks in a city, for placing the store's pickup point. */
+  searchPlaces(cityId: string, query: string): Promise<{ label: string; lat: number; lng: number }[]>;
   /** null until the vendor has registered a store */
   getStore(): Promise<Store | null>;
   listStores(): Promise<Store[]>;

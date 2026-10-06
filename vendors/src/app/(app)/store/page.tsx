@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { useCities, useMe, useStore, useUpdateStore } from "@/api/queries";
+import { PickupPoint } from "@/components/PickupPoint";
 import type { Store } from "@/api/types";
 import { defaultHours } from "@/lib/hours";
 import { HoursEditor } from "@/components/HoursEditor";
@@ -69,7 +70,7 @@ function Settings({ store }: { store: Store }) {
           <Input label="In a few words" maxLength={40} value={cuisine} onChange={(e) => setCuisine(e.target.value)} error={touched ? errors.cuisine : null} />
           <Textarea label="About your store" maxLength={200} value={description} onChange={(e) => setDescription(e.target.value)} />
           <Textarea label="Store address" maxLength={140} value={address} onChange={(e) => setAddress(e.target.value)} error={touched ? errors.address : null} />
-          <details className="advanced"><summary>Pickup point on the map</summary><p className="small muted">This is where riders are sent to collect orders. Only change it if riders keep arriving at the wrong place. You can copy the two numbers from a dropped pin in Google Maps.</p><div className="grid-2"><Input label="Latitude" value={latitude} onChange={e=>setLatitude(e.target.value)} /><Input label="Longitude" value={longitude} onChange={e=>setLongitude(e.target.value)} /></div></details>
+          <PickupPoint cityId={store.cityId} latitude={latitude} longitude={longitude} onChange={(lat, lng) => (setLatitude(lat), setLongitude(lng))} />
           {details.isError ? <p className="text-danger">{details.error.message}</p> : null}
           <div className="row" style={{ justifyContent: "flex-end" }}>
             <Button
