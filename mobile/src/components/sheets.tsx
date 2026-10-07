@@ -1,3 +1,4 @@
+import { ApiError } from '@/api/http/request';
 import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import { Building2, CalendarClock, CreditCard, MapPin, Search, Star, Wallet, Zap } from 'lucide-react-native';
@@ -186,9 +187,10 @@ export function usePlaceSearch(query: string) {
   return useQuery({ queryKey: ['places', cityId, debounced], queryFn: () => api.searchPlaces(debounced), enabled: debounced.length >= 3 && !!cityId, staleTime: 300_000 });
 }
 
-export function PlaceResults({ data, isFetching, isError, onSelect }: { data?: Place[]; isFetching: boolean; isError: boolean; onSelect: (p: Place) => void }) {
+export function PlaceResults({ data, isFetching, isError, error, onSelect }: { data?: Place[]; isFetching: boolean; isError: boolean; error?: Error | null; onSelect: (p: Place) => void }) {
   const { colors } = useTheme();
-  if (isError) return <Text color="danger">Address search isn’t available right now. Check your connection and try again.</Text>;
+  // say what the server said: "no connection" and "search isn't set up for this city" need different fixes
+  if (isError) return <Text color="danger">{error instanceof ApiError && error.status ? `Address search isn’t available right now. ${error.message}` : 'Address search isn’t available right now. Check your connection and try again.'}</Text>;
   if (!data && isFetching) return <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />;
   if (data && data.length === 0) return <Text color="muted">No places found. Try a nearby landmark or a main road.</Text>;
   return (

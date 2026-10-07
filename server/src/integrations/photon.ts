@@ -11,8 +11,8 @@ export function createPhotonGeocoder(baseUrl: string): Geocoder {
       try {
         const url = new URL(baseUrl); url.pathname = `${url.pathname.replace(/\/$/, '')}/${path}`;
         for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value);
-        const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(5000), headers: { accept: 'application/json' } });
-        if (!response.ok) throw new Error('Geocoding unavailable');
+        const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(5000), headers: { accept: 'application/json', 'user-agent': 'VendoServer/1.0 (+https://www.vendoltd.com)' } });
+        if (!response.ok) throw new Error(`Geocoder answered HTTP ${response.status}`);
         const text = await response.text();
         if (Buffer.byteLength(text) > 512000) throw new Error('Geocoding response too large');
         const result = z.object({ features: z.array(z.unknown()).max(100) }).parse(JSON.parse(text));
@@ -30,7 +30,12 @@ export function createPhotonGeocoder(baseUrl: string): Geocoder {
           places.push({ id, name: p.name || street || components[0]!, address: components.join(', '), location: { lat: geometry.coordinates[1], lng: geometry.coordinates[0] } });
         }
         return places;
-      } catch { throw new ApiError(503, 'GEOCODING_UNAVAILABLE', 'Address lookup is temporarily unavailable.'); }
+      } catch (error) {
+        // the reason only (status, timeout, DNS, bad JSON) — never the address being searched
+        const cause = error instanceof Error ? (error.cause instanceof Error ? `${error.message}: ${error.cause.message}` : `${error.name}: ${error.message}`) : 'unknown';
+        console.error(`Geocoding failed (${new URL(baseUrl).host}/${path}): ${cause.slice(0, 200)}`);
+        throw new ApiError(503, 'GEOCODING_UNAVAILABLE', 'Address lookup is temporarily unavailable.');
+      }
     });
   }
   return {
