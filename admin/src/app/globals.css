@@ -2408,3 +2408,19 @@ svg {
     min-width: 0;
   }
 }
+
+/* rider documents in the details panel */
+.doc-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+}
+.doc-row__actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
