@@ -2424,3 +2424,40 @@ svg {
   gap: 6px;
   flex-wrap: wrap;
 }
+
+/* Side panels and dialogs scroll inside themselves. The overlay's grid row was sized by its content,
+   so a long details panel grew past the screen with no way to reach the bottom. */
+.overlay--right {
+  grid-template-rows: minmax(0, 1fr);
+}
+.drawer {
+  min-height: 0;
+  max-height: 100dvh;
+}
+.modal {
+  max-height: calc(100dvh - 32px);
+}
+.modal__body {
+  min-height: 0;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+.drawer .modal__body {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+}
+@media (max-width: 640px) {
+  .modal {
+    max-height: 92dvh;
+  }
+}
+
+/* a row opens its details, same as the Details button */
+.row-link {
+  cursor: pointer;
+}
+.doc-row > .grow {
+  flex: 1 1 150px;
+}
+.drawer .doc-row__actions {
+  flex: 1 1 100%;
+}

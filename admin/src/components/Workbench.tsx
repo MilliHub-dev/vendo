@@ -343,7 +343,7 @@ export function Workbench({ datasets, description, detail }: { datasets: Dataset
               </thead>
               <tbody>
                 {rows.map((r, i) => (
-                  <tr key={rowId(r) === "undefined" ? i : rowId(r)}>
+                  <tr key={rowId(r) === "undefined" ? i : rowId(r)} className="row-link" onClick={(e) => !(e.target as HTMLElement).closest("button, a, .actions") && setSelected(r)}>
                     <td className="lead">{formatValue(lead, r[lead], names)}</td>
                     {rest.map((k) => (
                       <td key={k} data-label={labelOf(k)} className={isNumeric(k) ? "num" : undefined}>
