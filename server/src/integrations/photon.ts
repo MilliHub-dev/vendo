@@ -11,7 +11,9 @@ export function createPhotonGeocoder(baseUrl: string): Geocoder {
       try {
         const url = new URL(baseUrl); url.pathname = `${url.pathname.replace(/\/$/, '')}/${path}`;
         for (const [name, value] of Object.entries(params)) url.searchParams.set(name, value);
-        const response = await fetch(url, { redirect: 'error', signal: AbortSignal.timeout(5000), headers: { accept: 'application/json', 'user-agent': 'VendoServer/1.0 (+https://www.vendoltd.com)' } });
+        // one more try on a network error: the first call after a quiet spell can be slow to connect
+        const call = () => fetch(url, { redirect: 'error', signal: AbortSignal.timeout(4000), headers: { accept: 'application/json', 'user-agent': 'VendoServer/1.0 (+https://www.vendoltd.com)' } });
+        const response = await call().catch(() => call());
         if (!response.ok) throw new Error(`Geocoder answered HTTP ${response.status}`);
         const text = await response.text();
         if (Buffer.byteLength(text) > 512000) throw new Error('Geocoding response too large');

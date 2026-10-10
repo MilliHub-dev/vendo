@@ -8,5 +8,14 @@
     encode gzip zstd
     @health path /health
     respond @health "ok" 200
+
+    # Build files have a fingerprint in their name, so they never change: let browsers keep them for
+    # a year instead of asking again on every visit. Pages are re-checked so a deploy shows at once.
+    @fingerprinted path /_next/static/*
+    header @fingerprinted Cache-Control "public, max-age=31536000, immutable"
+    @assets path *.svg *.png *.jpg *.jpeg *.webp *.avif *.ico *.woff2
+    header @assets Cache-Control "public, max-age=86400"
+    @pages not path /_next/static/* *.svg *.png *.jpg *.jpeg *.webp *.avif *.ico *.woff2
+    header @pages Cache-Control "no-cache"
     file_server
 }

@@ -14,6 +14,27 @@ async function path(suffix = '') { return `/v1/vendor/stores/${await storeId()}$
 const PAGE=50;
 async function all(endpoint: string): Promise<Row[]> { const rows: Row[]=[]; for(let offset=0;offset<=10000;offset+=PAGE){ const page=array(await request(`${endpoint}${endpoint.includes('?')?'&':'?'}limit=${PAGE}&offset=${offset}`)).map(object);rows.push(...page); if(page.length<PAGE) return rows; } throw new Error('Too many records. Refine the selection.'); }
 async function portal() { return object(await request(await path('/portal'))); }
+// The order list is polled every few seconds. Reloading a store's whole history each time gets slower
+// as it grows, so the history is loaded once and each poll fetches only the newest page and merges it
+// in. A full reload every five minutes picks up anything older that changed.
+let orderCache: { storeId: string; rows: Row[]; loadedAt: number } | null = null;
+const FULL_RELOAD_MS = 5 * 60_000;
+async function storeOrders(): Promise<Row[]> {
+  const id = await storeId(), endpoint = `/v1/vendor/stores/${id}/orders`;
+  if (orderCache?.storeId !== id || Date.now() - orderCache.loadedAt > FULL_RELOAD_MS) {
+    const rows = await all(endpoint);
+    orderCache = { storeId: id, rows, loadedAt: Date.now() };
+    return rows;
+  }
+  const newest = array(await request(`${endpoint}?limit=${PAGE}&offset=0`)).map(object);
+  if (orderCache?.storeId !== id) return newest; // the store changed while this was loading
+  const known = new Set(orderCache.rows.map((r) => r.id));
+  // a full page of orders we've never seen means more arrived than one page holds: start over
+  if (newest.length === PAGE && newest.every((r) => !known.has(r.id))) { orderCache = null; return storeOrders(); }
+  const fresh = new Map(newest.map((r) => [r.id, r]));
+  orderCache.rows = [...newest.filter((r) => !known.has(r.id)), ...orderCache.rows.map((r) => fresh.get(r.id) ?? r)];
+  return orderCache.rows;
+}
 let withdrawalKey: { payload: string; key: string } | null = null;
 let registrationKey: { payload: string; key: string } | null = null;
 export const api: ApiClient = {
@@ -21,7 +42,7 @@ export const api: ApiClient = {
  async verifyCode(email,code) { const tokens=await request<Tokens>('/v1/auth/email/otp/verify','POST',{email,token:code},false);useSession.getState().setTokens(tokens);const me=object(await request('/v1/me'));return {token:tokens.access_token,user:me.onboarding_step==='complete'?user(me):null}; },
  async completeSignUp(details) { await request('/v1/me/name','PATCH',{name:details.name});const me=object(await request('/v1/me/phone','PATCH',{phone:details.phone}));return user(me); },
  async getMe() { return user(object(await request('/v1/me'))); },
- async logout() { try { await request('/v1/auth/logout','POST',{scope:'local'}); } finally { useSession.getState().signOut(); } },
+ async logout() { orderCache = null; try { await request('/v1/auth/logout','POST',{scope:'local'}); } finally { useSession.getState().signOut(); } },
  async listCities() { return cities(await request('/v1/cities','GET',undefined,false)); },
  async searchPlaces(cityId, query) { const r=object(await request(`/v1/maps/search?city_id=${encodeURIComponent(cityId)}&q=${encodeURIComponent(query.trim())}&limit=6`));return array(r.items).map(v=>{const p=object(v),at=object(p.location),name=string(p.name),address=string(p.address);return {label:address.toLowerCase().startsWith(name.toLowerCase())?address:[name,address].filter(Boolean).join(', '),lat:number(at.lat),lng:number(at.lng)};}); },
  async listStores() { return (await all('/v1/vendor/stores')).map(store); },
@@ -36,7 +57,7 @@ export const api: ApiClient = {
  async updateStore(body) { const payload:Row={};for(const [key,value] of Object.entries(body)){const names:Record<string,string>={logoUrl:'logo_url',bannerUrl:'image_url',hours:'opening_hours'};payload[names[key]??key]=value;}await request(await path(),'PATCH',payload);const s=await this.getStore();if(!s)throw new Error('Store unavailable.');return s; },
  async setOpen(open) { await request(await path('/availability'),'PUT',{is_open:open});const s=await this.getStore();if(!s)throw new Error('Store unavailable.');return s; },
  async uploadImage(file,kind) { if(!['image/png','image/jpeg','image/webp'].includes(file.type)||file.size>2*1024*1024)throw new Error('Use a JPEG, PNG or WebP image up to 2 MiB.');const bytes=new Uint8Array(await file.arrayBuffer());let binary='';for(let i=0;i<bytes.length;i+=8192)binary+=String.fromCharCode(...bytes.subarray(i,i+8192));const result=object(await request(await path('/media'),'POST',{purpose:kind==='logo'?'logo':'image',mime:file.type,data_base64:btoa(binary)}));const url=string(result.public_url);if(!url.startsWith('https://'))throw new Error('The upload did not return a public image URL.');return url; },
- async listOrders() { return (await all(await path('/orders'))).filter(r=>r.payment_status==='paid'&&r.status!=='scheduled').map(order); },
+ async listOrders() { return (await storeOrders()).filter(r=>r.payment_status==='paid'&&r.status!=='scheduled').map(order); },
  async getOrder(id) { return order(object(await request(await path(`/orders/${encodeURIComponent(id)}`)))); },
  async acceptOrder(id,prepMinutes) { await request(await path(`/orders/${encodeURIComponent(id)}/action`),'POST',{action:'accept',prep_minutes:prepMinutes});return this.getOrder(id); },
  async rejectOrder(id,reason) { await request(await path(`/orders/${encodeURIComponent(id)}/action`),'POST',{action:'reject',reason});return this.getOrder(id); },

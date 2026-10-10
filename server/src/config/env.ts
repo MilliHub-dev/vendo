@@ -22,6 +22,7 @@ const schema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   CORS_ORIGINS: z.string().default(''),
   TRUST_PROXY: optionalText,
+  AUTH_CACHE_SECONDS: z.coerce.number().int().min(0).max(60).default(0),
   SUPABASE_URL: optionalUrl,
   SUPABASE_ANON_KEY: optionalText,
   SUPABASE_SERVICE_ROLE_KEY: optionalText,

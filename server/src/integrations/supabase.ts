@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createClient, type Session, type AuthError } from '@supabase/supabase-js';
 import { ApiError } from '../lib/errors.js';
 import { normalizePhone, type AuthGateway, type AuthSession, type Identity } from '../modules/auth/schema.js';
@@ -20,7 +21,15 @@ function sessionResponse(session: Session | null): AuthSession {
  */
 export type DirectEmail = { serviceRoleKey: string; send(email: string, code: string): Promise<void> };
 
-export function createSupabaseAuth(url: string, publicKey: string, direct?: DirectEmail): AuthGateway {
+/**
+ * `cacheSeconds` (AUTH_CACHE_SECONDS, off by default): remember a verified access token for a few
+ * seconds instead of asking Supabase on every request. The trade: a session ended elsewhere keeps
+ * working for up to that long. Signing out through this API forgets the token at once, and account
+ * suspension is still checked against the database on every request.
+ */
+export function createSupabaseAuth(url: string, publicKey: string, direct?: DirectEmail, cacheSeconds = 0): AuthGateway {
+  const verified = new Map<string, { expires: number; identity: Identity }>();
+  const tokenKey = (token: string) => createHash('sha256').update(token).digest('hex');
   // Privileged client: used only to generate sign-in codes. Never used to act as a customer.
   const admin = () => createClient(url, direct!.serviceRoleKey, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
@@ -46,6 +55,18 @@ export function createSupabaseAuth(url: string, publicKey: string, direct?: Dire
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { fetch: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(10000) }) },
   });
+  const verify = async (accessToken: string): Promise<Identity> => {
+    const { data, error } = await client().auth.getUser(accessToken);
+    if (error) throw providerError(error, 'Your session is invalid or expired.');
+    if (data.user?.email && data.user.email_confirmed_at && !data.user.is_anonymous) {
+      return { id: data.user.id, phone: data.user.phone_confirmed_at && data.user.phone ? normalizePhone(data.user.phone) : '', email: data.user.email.toLowerCase() };
+    }
+    if (!data.user?.phone || !data.user.phone_confirmed_at || data.user.is_anonymous) {
+      throw new ApiError(401, 'PHONE_NOT_VERIFIED', 'Verify your phone number to continue.');
+    }
+    try { return { id: data.user.id, phone: normalizePhone(data.user.phone) }; }
+    catch { throw new ApiError(403, 'UNSUPPORTED_PHONE', 'This phone number is outside the supported region.'); }
+  };
   return {
     async requestEmailOtp(email) {
       if (direct) return direct.send(email, await generateCode(email));
@@ -72,18 +93,16 @@ export function createSupabaseAuth(url: string, publicKey: string, direct?: Dire
       return sessionResponse(data.session);
     },
     async authenticate(accessToken): Promise<Identity> {
-      const { data, error } = await client().auth.getUser(accessToken);
-      if (error) throw providerError(error, 'Your session is invalid or expired.');
-      if (data.user?.email && data.user.email_confirmed_at && !data.user.is_anonymous) {
-        return { id: data.user.id, phone: data.user.phone_confirmed_at && data.user.phone ? normalizePhone(data.user.phone) : '', email: data.user.email.toLowerCase() };
-      }
-      if (!data.user?.phone || !data.user.phone_confirmed_at || data.user.is_anonymous) {
-        throw new ApiError(401, 'PHONE_NOT_VERIFIED', 'Verify your phone number to continue.');
-      }
-      try { return { id: data.user.id, phone: normalizePhone(data.user.phone) }; }
-      catch { throw new ApiError(403, 'UNSUPPORTED_PHONE', 'This phone number is outside the supported region.'); }
+      if (!cacheSeconds) return verify(accessToken);
+      const key = tokenKey(accessToken), now = Date.now(), hit = verified.get(key);
+      if (hit && hit.expires > now) return { ...hit.identity };
+      const identity = await verify(accessToken);
+      if (verified.size >= 5000) for (const [k, v] of verified) if (v.expires <= now || verified.size >= 5000) verified.delete(k);
+      verified.set(key, { expires: now + cacheSeconds * 1000, identity: { ...identity } });
+      return identity;
     },
     async logout(accessToken, scope = 'local') {
+      verified.delete(tokenKey(accessToken));
       const { error } = await client().auth.admin.signOut(accessToken, scope);
       if (error) throw providerError(error, 'Unable to end the session.');
     },

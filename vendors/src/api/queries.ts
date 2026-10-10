@@ -20,7 +20,9 @@ export const keys = {
 export const useMe = () => useQuery({ queryKey: keys.me, queryFn: () => api.getMe() });
 export const useCities = () => useQuery({ queryKey: keys.cities, queryFn: () => api.listCities(), staleTime: Infinity });
 /** Polled so an approval made in the admin dashboard shows up without a restart. */
-export const useStore = (enabled = true) => useQuery({ queryKey: keys.store, queryFn: () => api.getStore(), refetchInterval: 3000, enabled });
+// Each check is up to three requests, so it runs often only while waiting on a decision; an approved
+// store rarely changes underneath the vendor.
+export const useStore = (enabled = true) => useQuery({ queryKey: keys.store, queryFn: () => api.getStore(), refetchInterval: (q) => (q.state.data?.approval === 'approved' ? 60_000 : 10_000), enabled });
 
 function useStoreMutation<T>(fn: (arg: T) => Promise<Store>) {
   const client = useQueryClient();
@@ -30,8 +32,8 @@ export const useRegisterStore = () => useStoreMutation((body: RegisterStoreReque
 export const useUpdateStore = () => useStoreMutation((body: StoreUpdate) => api.updateStore(body));
 export const useSetOpen = () => useStoreMutation((open: boolean) => api.setOpen(open));
 
-/** One list for every orders view; screens filter it. Polled every 2 s so new orders appear promptly. */
-export const useOrders = (enabled = true) => useQuery({ queryKey: keys.orders, queryFn: () => api.listOrders(), refetchInterval: 2000, enabled });
+/** One list for every orders view; screens filter it. Polled every 5 s so new orders appear promptly without stacking requests on a slow connection. */
+export const useOrders = (enabled = true) => useQuery({ queryKey: keys.orders, queryFn: () => api.listOrders(), refetchInterval: 5000, enabled });
 export const useOrder = (id: string) => {
   const orders = useOrders();
   return { ...orders, data: orders.data?.find((o) => o.id === id) };

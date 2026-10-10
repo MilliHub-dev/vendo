@@ -73,3 +73,32 @@ test('with the service key and our own sender, the server emails the sign-in cod
   await assert.rejects(() => auth.requestEmailOtp!('amina@example.com'), /not configured correctly/);
   assert.equal(sent.length, 0);
 });
+
+test('with AUTH_CACHE_SECONDS a verified token is not re-checked until it expires or is signed out', async (t) => {
+  let checks = 0;
+  const original = globalThis.fetch;
+  t.after(() => { globalThis.fetch = original; });
+  globalThis.fetch = async (input, init) => {
+    if (!new URL(String(input)).pathname.endsWith('/user')) return Response.json({});
+    checks += 1;
+    if (new Headers(init?.headers).get('authorization') !== 'Bearer good') return Response.json({ message: 'bad jwt', code: 'bad_jwt' }, { status: 401 });
+    return Response.json({ id: alice.id, aud: 'authenticated', phone: '2348144461726', phone_confirmed_at: new Date().toISOString(),
+      is_anonymous: false, user_metadata: {}, app_metadata: {}, created_at: new Date().toISOString() });
+  };
+  const cached = createSupabaseAuth('https://test.supabase.co', 'public-test-key', undefined, 30);
+  assert.deepEqual(await cached.authenticate('good'), alice);
+  assert.deepEqual(await cached.authenticate('good'), alice);
+  assert.equal(checks, 1);
+  // a rejected token is never remembered
+  await assert.rejects(() => cached.authenticate('bad'), /invalid or expired/);
+  await assert.rejects(() => cached.authenticate('bad'), /invalid or expired/);
+  assert.equal(checks, 3);
+  // signing out forgets the token straight away
+  await cached.logout('good');
+  await cached.authenticate('good');
+  assert.equal(checks, 4);
+  // off by default: every request is checked
+  const live = createSupabaseAuth('https://test.supabase.co', 'public-test-key');
+  await live.authenticate('good'); await live.authenticate('good');
+  assert.equal(checks, 6);
+});

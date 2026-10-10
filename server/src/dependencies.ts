@@ -15,7 +15,7 @@ import type { Dependencies } from './app.js';
 import { PostgresAccountRepository } from './modules/accounts/repository.js';
 
 import { PostgresFoodRepository } from './modules/food/repository.js';
-import { createMapboxRouting } from './integrations/mapbox.js';
+import { createMapboxGeocoder, createMapboxRouting, fallbackGeocoder } from './integrations/mapbox.js';
 
 import { PostgresDispatchRepository } from './modules/dispatch/repository.js';
 
@@ -82,11 +82,14 @@ export async function createDependencies(env: Env): Promise<Dependencies> {
     ...(env.PAYSTACK_SECRET_KEY ? { payoutBanks: createPaystackBanks(env.PAYSTACK_SECRET_KEY) } : {}),
     orders: pool ? new PostgresOrderRepository(pool) : { events: unavailable, receipt: unavailable, cancellation: unavailable, cancel: unavailable, reschedule: unavailable, dispute: unavailable, resolveDispute: unavailable, rating: unavailable, savePolicy: unavailable, policy: unavailable, riderAction: unavailable, processDue: unavailable },
     addresses: pool ? new PostgresAddressRepository(pool) : { cities: unavailable, city: unavailable, saveBoundary: unavailable, list: unavailable, get: unavailable, save: unavailable, delete: unavailable, preferredCity: unavailable, setCity: unavailable },
-    geocoder: env.PHOTON_BASE_URL ? createPhotonGeocoder(env.PHOTON_BASE_URL) : { search: unavailable, reverse: unavailable },
+    // Photon (OpenStreetMap) first; Mapbox takes over whenever Photon cannot be reached.
+    geocoder: env.PHOTON_BASE_URL && env.MAPBOX_ACCESS_TOKEN_SERVER ? fallbackGeocoder(createPhotonGeocoder(env.PHOTON_BASE_URL), createMapboxGeocoder(env.MAPBOX_ACCESS_TOKEN_SERVER))
+      : env.PHOTON_BASE_URL ? createPhotonGeocoder(env.PHOTON_BASE_URL)
+      : env.MAPBOX_ACCESS_TOKEN_SERVER ? createMapboxGeocoder(env.MAPBOX_ACCESS_TOKEN_SERVER) : { search: unavailable, reverse: unavailable },
     dispatch: pool ? new PostgresDispatchRepository(pool) : { getCity: unavailable, packages: unavailable, savePackage: unavailable, saveQuote: unavailable, createOrder: unavailable, getCode: unavailable, complete: unavailable },
     food: pool ? new PostgresFoodRepository(pool) : { listVendors: unavailable, getVendor: unavailable, getCity: unavailable, saveVendor: unavailable, saveMenu: unavailable, assignStaff: unavailable, saveQuote: unavailable, createOrder: unavailable, listOrders: unavailable, getOrder: unavailable, vendorAction: unavailable },
     routing: env.MAPBOX_ACCESS_TOKEN_SERVER ? cachedRouting(createMapboxRouting(env.MAPBOX_ACCESS_TOKEN_SERVER)) : { route: unavailable },
-    auth: env.SUPABASE_URL && env.SUPABASE_ANON_KEY ? createSupabaseAuth(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, signInEmail)
+    auth: env.SUPABASE_URL && env.SUPABASE_ANON_KEY ? createSupabaseAuth(env.SUPABASE_URL, env.SUPABASE_ANON_KEY, signInEmail, env.AUTH_CACHE_SECONDS)
       : { requestOtp: unavailable, verifyOtp: unavailable, refresh: unavailable, authenticate: unavailable, logout: unavailable },
     profiles: pool ? new PostgresProfileRepository(pool) : { bootstrap: unavailable, setName: unavailable, setEmail: unavailable },
     accounts: pool ? new PostgresAccountRepository(pool) : { issueVerification: unavailable, discardVerification: unavailable, verifyEmail: unavailable, getPreferences: unavailable, updatePreferences: unavailable, requestDeletion: unavailable, requestRecovery: unavailable },
@@ -97,24 +100,27 @@ export async function createDependencies(env: Env): Promise<Dependencies> {
     ...(redis ? { redis } : {}),
     async readiness() {
       if (!pool || !env.SUPABASE_URL || !env.SUPABASE_ANON_KEY) return false;
-      await pool.query('SELECT id FROM public.profiles LIMIT 0');
-      await pool.query('SELECT id FROM vendo_internal.email_verifications LIMIT 0');
-      await pool.query('SELECT id FROM public.orders LIMIT 0');
-      await pool.query('SELECT order_id FROM vendo_internal.dispatch_delivery_codes LIMIT 0');
-      await pool.query('SELECT note,is_default FROM public.saved_addresses LIMIT 0');
-      await pool.query('SELECT id FROM public.order_ratings LIMIT 0');
-      await pool.query('SELECT id FROM vendo_internal.payment_intents LIMIT 0');
-      await pool.query('SELECT id FROM public.wallet_transactions LIMIT 0');
-      await pool.query('SELECT id FROM vendo_internal.rider_offers LIMIT 0');
-      await pool.query('SELECT id FROM public.notifications LIMIT 0');
-      await pool.query('SELECT id FROM vendo_internal.promos LIMIT 0');
-      await pool.query('SELECT id FROM vendo_internal.vendor_applications LIMIT 0');
-      await pool.query('SELECT id FROM vendo_internal.media_assets LIMIT 0');
-      await pool.query('SELECT storage_path FROM vendo_internal.rider_documents LIMIT 0');
-      await pool.query('SELECT id FROM public.order_messages LIMIT 0');
-      await pool.query('SELECT id FROM vendo_internal.admin_actions LIMIT 0');
-      await pool.query('SELECT id FROM vendo_internal.admin_broadcasts LIMIT 0');
-      await pool.query('SELECT id FROM vendo_internal.withdrawals LIMIT 0');
+      // one round trip for every table the API depends on, rather than one each
+      await pool.query([
+        'SELECT id FROM public.profiles LIMIT 0',
+        'SELECT id FROM vendo_internal.email_verifications LIMIT 0',
+        'SELECT id FROM public.orders LIMIT 0',
+        'SELECT order_id FROM vendo_internal.dispatch_delivery_codes LIMIT 0',
+        'SELECT note,is_default FROM public.saved_addresses LIMIT 0',
+        'SELECT id FROM public.order_ratings LIMIT 0',
+        'SELECT id FROM vendo_internal.payment_intents LIMIT 0',
+        'SELECT id FROM public.wallet_transactions LIMIT 0',
+        'SELECT id FROM vendo_internal.rider_offers LIMIT 0',
+        'SELECT id FROM public.notifications LIMIT 0',
+        'SELECT id FROM vendo_internal.promos LIMIT 0',
+        'SELECT id FROM vendo_internal.vendor_applications LIMIT 0',
+        'SELECT id FROM vendo_internal.media_assets LIMIT 0',
+        'SELECT storage_path FROM vendo_internal.rider_documents LIMIT 0',
+        'SELECT id FROM public.order_messages LIMIT 0',
+        'SELECT id FROM vendo_internal.admin_actions LIMIT 0',
+        'SELECT id FROM vendo_internal.admin_broadcasts LIMIT 0',
+        'SELECT id FROM vendo_internal.withdrawals LIMIT 0',
+      ].join('; '));
       if (redis) await redis.ping();
       return true;
     },
