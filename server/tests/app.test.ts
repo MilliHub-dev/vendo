@@ -161,3 +161,40 @@ test('email OTP normalizes addresses, rate limits resends and verifies sessions'
   assert.equal((await verify('999999')).statusCode, 401);
   assert.equal((await verify('123456')).json().access_token, 'alice');
 });
+
+test('review sign-in: the review address signs in with its fixed code, sends no email, and is off by default', async (t) => {
+  const session = { access_token: 'alice', refresh_token: 'refresh-alice', expires_in: 3600, token_type: 'bearer' as const };
+  const make = async (extra: object) => {
+    const f = fixtures(), sent: string[] = [], opened: string[] = [];
+    f.dependencies.auth.requestEmailOtp = async (email) => { sent.push(email); };
+    f.dependencies.auth.verifyEmailOtp = async (_email, token) => { if (token !== '654321') throw new ApiError(401, 'AUTH_FAILED', 'Invalid code.'); return session; };
+    f.dependencies.auth.testSession = async (email) => { opened.push(email); return session; };
+    const app = await buildApp({ ...env, ...extra }, f.dependencies); t.after(() => app.close());
+    const post = (url: string, payload: object) => app.inject({ method: 'POST', url, payload });
+    return { sent, opened, send: (email: string) => post('/v1/auth/email/otp/request', { email }), verify: (email: string, token: string) => post('/v1/auth/email/otp/verify', { email, token }) };
+  };
+  // not configured: the address is like any other, and its fixed code does nothing
+  const off = await make({});
+  assert.equal((await off.send('review@vendoltd.com')).statusCode, 202);
+  assert.deepEqual(off.sent, ['review@vendoltd.com']);
+  assert.equal((await off.verify('review@vendoltd.com', '123456')).statusCode, 401);
+  assert.deepEqual(off.opened, []);
+  // a code that isn't six digits leaves it off
+  const bad = await make({ TEST_LOGIN_EMAIL: 'review@vendoltd.com', TEST_LOGIN_CODE: '1234' });
+  assert.equal((await bad.verify('review@vendoltd.com', '123456')).statusCode, 401);
+
+  const on = await make({ TEST_LOGIN_EMAIL: 'Review@VendoLtd.com', TEST_LOGIN_CODE: '123456' });
+  assert.equal((await on.send(' REVIEW@vendoltd.com ')).statusCode, 202);
+  assert.deepEqual(on.sent, []);
+  assert.equal((await on.verify('review@vendoltd.com', '000000')).statusCode, 401);
+  assert.deepEqual(on.opened, []);
+  assert.equal((await on.verify('review@vendoltd.com', '123456')).json().access_token, 'alice');
+  assert.deepEqual(on.opened, ['review@vendoltd.com']);
+  // everyone else is untouched: the fixed code is not a master key
+  assert.equal((await on.verify('owner@example.com', '123456')).statusCode, 401);
+  assert.equal((await on.verify('owner@example.com', '654321')).statusCode, 200);
+  assert.deepEqual(on.opened, ['review@vendoltd.com']);
+  // wrong guesses are limited like any sign-in code
+  for (let i = 0; i < 5; i++) await on.verify('review@vendoltd.com', '000000');
+  assert.equal((await on.verify('review@vendoltd.com', '123456')).statusCode, 429);
+});

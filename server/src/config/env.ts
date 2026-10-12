@@ -22,6 +22,9 @@ const schema = z.object({
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   CORS_ORIGINS: z.string().default(''),
   TRUST_PROXY: optionalText,
+  // Review sign-in for app-store reviewers: this address signs in with this fixed code and no email is sent. Either unset = off.
+  TEST_LOGIN_EMAIL: optionalText,
+  TEST_LOGIN_CODE: optionalText,
   AUTH_CACHE_SECONDS: z.coerce.number().int().min(0).max(60).default(0),
   SUPABASE_URL: optionalUrl,
   SUPABASE_ANON_KEY: optionalText,

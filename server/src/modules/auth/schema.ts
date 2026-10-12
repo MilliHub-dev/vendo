@@ -26,6 +26,8 @@ export type Identity = { id: string; phone: string; email?: string };
 export interface AuthGateway {
   requestEmailOtp?(email: string): Promise<void>;
   verifyEmailOtp?(email: string, token: string): Promise<AuthSession>;
+  /** Opens a session for our own review account without an emailed code. Only reachable through the review sign-in. */
+  testSession?(email: string): Promise<AuthSession>;
   requestOtp(phone: string): Promise<void>;
   verifyOtp(phone: string, token: string): Promise<AuthSession>;
   refresh(refreshToken: string): Promise<AuthSession>;

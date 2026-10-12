@@ -173,7 +173,7 @@ export async function buildApp(env: Env, dependencies: Dependencies) {
   registerFinanceRoutes(app,dependencies.auth,profiles,dependencies.finance,new FinanceService(dependencies.finance,dependencies.transferGateway,env.PAYSTACK_TRANSFERS_ENABLED==='true'));
   registerExtrasRoutes(app,dependencies.auth,profiles,dependencies.extras,{phone:env.SUPPORT_PHONE??null,email:env.SUPPORT_EMAIL??null});
   registerNotificationRoutes(app,dependencies.auth,profiles,dependencies.notifications);
-  registerAuthRoutes(app, dependencies.auth, dependencies.limits, profiles);
+  registerAuthRoutes(app, dependencies.auth, dependencies.limits, profiles, { email: env.TEST_LOGIN_EMAIL, code: env.TEST_LOGIN_CODE });
   registerProfileRoutes(app, dependencies.auth, profiles);
   registerAccountRoutes(app, dependencies.auth, new AccountService(dependencies.accounts, profiles, dependencies.auth, dependencies.email, dependencies.limits, env.EMAIL_VERIFICATION_SECRET));
   const food = new FoodService(dependencies.food, profiles, dependencies.routing);

@@ -73,6 +73,11 @@ export function createSupabaseAuth(url: string, publicKey: string, direct?: Dire
       const { error } = await client().auth.signInWithOtp({ email, options: { shouldCreateUser: true } });
       if (error) throw providerError(error, 'Unable to request a verification code.');
     },
+    ...(direct ? { async testSession(email: string) {
+      const { data, error } = await client().auth.verifyOtp({ email, token: await generateCode(email), type: 'email' });
+      if (error) throw providerError(error, 'Unable to open the review account.');
+      return sessionResponse(data.session);
+    } } : {}),
     async verifyEmailOtp(email, token) {
       const { data, error } = await client().auth.verifyOtp({ email, token, type: 'email' });
       if (error) throw providerError(error, 'The verification code is invalid or expired.');

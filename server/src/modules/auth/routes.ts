@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import type { FastifyInstance, FastifyRequest } from 'fastify';
 import type { ZodTypeProvider } from 'fastify-type-provider-zod';
 import { z } from 'zod';
@@ -13,7 +14,12 @@ export async function authenticate(request: FastifyRequest, auth: AuthGateway): 
   return auth.authenticate(match[1]);
 }
 
-export function registerAuthRoutes(app: FastifyInstance, auth: AuthGateway, limits: Limits, profiles: ProfileService): void {
+export function registerAuthRoutes(app: FastifyInstance, auth: AuthGateway, limits: Limits, profiles: ProfileService, review?: { email?: string | undefined; code?: string | undefined }): void {
+  // Review sign-in for app-store reviewers and demos: one address of ours that signs in with a fixed code, so
+  // nobody needs our inbox. Off unless both TEST_LOGIN_EMAIL and a six-digit TEST_LOGIN_CODE are set.
+  const reviewEmail = review?.email && /^\d{6}$/.test(review.code ?? '') ? review.email.trim().toLowerCase() : null;
+  const reviewCode = review?.code ?? '';
+  const same = (x: string, y: string) => x.length === y.length && timingSafeEqual(Buffer.from(x), Buffer.from(y));
   const api = app.withTypeProvider<ZodTypeProvider>();
   const activeSession = async (session: z.infer<typeof sessionSchema>) => {
     try { await profiles.get(await auth.authenticate(session.access_token)); }
@@ -30,7 +36,8 @@ export function registerAuthRoutes(app: FastifyInstance, auth: AuthGateway, limi
     if (!await limits.consume(`${key}:resend`, 1, 60) || !await limits.consume(`${key}:send`, 5, 3600))
       throw new ApiError(429, 'OTP_RATE_LIMITED', 'Please wait before requesting another code.');
     if (!auth.requestEmailOtp) throw new ApiError(503, 'AUTH_UNAVAILABLE', 'Email sign-in is not configured.');
-    await auth.requestEmailOtp(request.body.email);
+    // the review address has a fixed code: nothing to send
+    if (request.body.email !== reviewEmail) await auth.requestEmailOtp(request.body.email);
     return reply.code(202).send({ message: 'Verification code requested.', retry_after_seconds: 60 });
   });
   api.post('/v1/auth/email/otp/verify', {
@@ -41,6 +48,10 @@ export function registerAuthRoutes(app: FastifyInstance, auth: AuthGateway, limi
     if (!await limits.consume(phoneKey('email-verify', request.body.email), 5, 300))
       throw new ApiError(429, 'OTP_RATE_LIMITED', 'Too many verification attempts. Please try again later.');
     if (!auth.verifyEmailOtp) throw new ApiError(503, 'AUTH_UNAVAILABLE', 'Email sign-in is not configured.');
+    if (reviewEmail && auth.testSession && request.body.email === reviewEmail) {
+      if (!same(reviewCode, request.body.token)) throw new ApiError(401, 'AUTH_FAILED', 'That code isn’t right. Check it and try again.');
+      return activeSession(await auth.testSession(reviewEmail));
+    }
     return activeSession(await auth.verifyEmailOtp(request.body.email, request.body.token));
   });
   api.post('/v1/auth/otp/request', {
