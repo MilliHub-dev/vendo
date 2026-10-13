@@ -8,7 +8,8 @@ export type PromoInput = z.infer<typeof promoInput>;
 export const promoOutput = promoInput.extend({ id: z.uuid(), used_count: z.number().int() });
 export const referralPolicy = z.strictObject({ enabled: z.boolean(), referrer_reward_kobo: z.number().int().min(1).max(100000000), referee_reward_kobo: z.number().int().min(1).max(100000000), minimum_order_kobo: z.number().int().min(1).max(1000000000), hold_days: z.number().int().min(1).max(90), expiry_days: z.number().int().min(1).max(365), referrer_cap: z.number().int().min(1).max(1000) }).refine(v => v.expiry_days > v.hold_days, 'Expiry must allow the reward waiting period.');
 export type ReferralPolicy = z.infer<typeof referralPolicy>;
-export const referralOverview = z.object({ code: promoCode, enabled: z.boolean(), pending: z.number().int(), rewarded: z.number().int(), earned_kobo: z.number().int(), applied: z.boolean() });
+// the reward amounts are what the admin set; 0 while referrals are switched off
+export const referralOverview = z.object({ code: promoCode, enabled: z.boolean(), referrer_reward_kobo: z.number().int(), referee_reward_kobo: z.number().int(), minimum_order_kobo: z.number().int(), pending: z.number().int(), rewarded: z.number().int(), earned_kobo: z.number().int(), applied: z.boolean() });
 export const ticketInput = z.strictObject({ subject: z.string().trim().min(3).max(150), message: z.string().trim().min(10).max(3000), category: z.enum(['order', 'payment', 'account', 'other']), order_id: z.uuid().nullable().default(null) });
 export type TicketInput = z.infer<typeof ticketInput>;
 export const ticketSchema = z.object({ id: z.uuid(), subject: z.string(), category: z.string(), order_id: z.uuid().nullable(), status: z.enum(['open', 'resolved']), created_at: z.string(), updated_at: z.string() });

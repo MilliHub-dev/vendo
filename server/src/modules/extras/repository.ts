@@ -4,6 +4,9 @@ import { ApiError } from '../../lib/errors.js';
 import { promoOutput, ticketSchema, messageSchema, legalSchema, type ExtrasRepository, type PromoInput, type ReferralPolicy, type TicketInput, type LegalInput } from './schema.js';
 const serialize = (row: Record<string, unknown>) => Object.fromEntries(Object.entries(row).map(([k, v]) => [k, v instanceof Date ? v.toISOString() : v]));
 const canonical = (v: unknown) => JSON.stringify(v, (_k, x: unknown) => x && typeof x === 'object' && !Array.isArray(x) ? Object.fromEntries(Object.entries(x).sort(([a], [b]) => a.localeCompare(b))) : x);
+/** Letters and digits without the lookalikes 0/O and 1/I. */
+const REFERRAL_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+export const referralCode = (length: number) => Array.from(randomBytes(length), (b) => REFERRAL_ALPHABET[b % 32]).join('');
 export class PostgresExtrasRepository implements ExtrasRepository {
     constructor(private readonly pool: pg.Pool) { }
     private async transaction<T>(work: (c: pg.PoolClient) => Promise<T>): Promise<T> { const c = await this.pool.connect(); try {
@@ -48,9 +51,16 @@ export class PostgresExtrasRepository implements ExtrasRepository {
     async referrals(user: string) {
         return this.transaction(async (c) => {
             await this.actor(c, user, false, 'UPDATE');
-            // 64 random bits; collision is a safe transaction retry, never a code takeover.
-            await c.query('INSERT INTO vendo_internal.referral_codes(profile_id,code) VALUES ($1,$2) ON CONFLICT(profile_id) DO NOTHING', [user, randomBytes(8).toString('hex').toUpperCase()]);
+            // Short enough to say out loud. A code someone else already has is simply skipped and another tried, so a
+            // clash can never hand over or overwrite a code; after several clashes the code grows by a character.
+            for (let attempt = 0; attempt < 12; attempt++) {
+                await c.query('INSERT INTO vendo_internal.referral_codes(profile_id,code) VALUES ($1,$2) ON CONFLICT DO NOTHING', [user, referralCode(attempt < 6 ? 4 : attempt < 10 ? 5 : 6)]);
+                if ((await c.query('SELECT 1 FROM vendo_internal.referral_codes WHERE profile_id=$1', [user])).rows[0]) break;
+            }
             const { rows } = await c.query(`SELECT rc.code,COALESCE((SELECT enabled FROM vendo_internal.referral_policies ORDER BY created_at DESC,id DESC LIMIT 1),false) AS enabled,
+    COALESCE((SELECT CASE WHEN enabled THEN (config->>'referrer_reward_kobo')::int END FROM vendo_internal.referral_policies ORDER BY created_at DESC,id DESC LIMIT 1),0) AS referrer_reward_kobo,
+    COALESCE((SELECT CASE WHEN enabled THEN (config->>'referee_reward_kobo')::int END FROM vendo_internal.referral_policies ORDER BY created_at DESC,id DESC LIMIT 1),0) AS referee_reward_kobo,
+    COALESCE((SELECT CASE WHEN enabled THEN (config->>'minimum_order_kobo')::int END FROM vendo_internal.referral_policies ORDER BY created_at DESC,id DESC LIMIT 1),0) AS minimum_order_kobo,
     (SELECT count(*)::int FROM vendo_internal.referrals WHERE referrer_id=$1 AND status='pending') AS pending,
     (SELECT count(*)::int FROM vendo_internal.referrals WHERE referrer_id=$1 AND status='rewarded') AS rewarded,
     (SELECT COALESCE(sum(amount_kobo),0)::bigint FROM public.wallet_transactions WHERE customer_id=$1 AND kind='referral') AS earned_kobo,

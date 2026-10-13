@@ -103,11 +103,11 @@ async function menusOf(vendors: SVendor[], count: number) {
 const withVendor = (m: SMenuItem, vendor: SVendor): MenuItemWithVendor => ({ ...toMenuItem(m), vendorName: vendor.name });
 
 async function referrals(): Promise<ReferralSummary> {
-  const r = await request<{ code: string; enabled: boolean; pending: number; rewarded: number; earned_kobo: number; applied: boolean }>('GET', '/v1/me/referrals');
+  const r = await request<{ code: string; enabled: boolean; pending: number; rewarded: number; earned_kobo: number; applied: boolean; referrer_reward_kobo?: number; referee_reward_kobo?: number }>('GET', '/v1/me/referrals');
   return {
     code: r.code, shareUrl: `https://vendoltd.com/download/?ref=${encodeURIComponent(r.code)}`,
-    // the server doesn't publish the reward amounts yet, so the screen leaves them out when they are 0
-    referrerRewardKobo: 0, refereeDiscountKobo: 0, earnedKobo: r.earned_kobo,
+    // set by Vendo in the admin dashboard; 0 while referrals are off (or on an older server), and the screen then leaves them out
+    referrerRewardKobo: r.referrer_reward_kobo ?? 0, refereeDiscountKobo: r.referee_reward_kobo ?? 0, earnedKobo: r.earned_kobo,
     appliedCode: r.applied ? 'applied' : null, canApply: r.enabled && !r.applied, friends: [], pendingCount: r.pending, rewardedCount: r.rewarded,
   };
 }

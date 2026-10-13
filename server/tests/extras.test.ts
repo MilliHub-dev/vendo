@@ -286,3 +286,11 @@ test('Customer extras API/SQL: authoritative promos, referrals, support, legal v
     await assert.rejects(() => db.query('SELECT * FROM public.notifications'));
     await db.exec('RESET ROLE');
 });
+
+test('referral codes are short, upper-case letters and digits, without lookalike characters', async () => {
+  const { referralCode } = await import('../src/modules/extras/repository.js');
+  const codes = Array.from({ length: 500 }, () => referralCode(4));
+  for (const code of codes) assert.match(code, /^[A-HJ-NP-Z2-9]{4}$/);
+  assert.ok(new Set(codes).size > 450); // random, not a counter
+  assert.match(referralCode(6), /^[A-HJ-NP-Z2-9]{6}$/);
+});

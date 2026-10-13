@@ -14,7 +14,7 @@ import { Button, Confirm, Empty, Input, Modal, Spinner, Switch } from "./ui";
 
 export type Field = { key: string; label: string; type?: "text" | "number" | "boolean" | "select" | "json" | "cities" | "datetime-local" | "money"; options?: string[]; nullable?: boolean; optional?: boolean; min?: number; max?: number; minLength?: number; maxLength?: number; value?: unknown; hint?: string };
 export type Action = { label: string; path: string | ((row: Row) => string); method?: string; fields?: Field[]; initial?: (row: Row) => Row; transform?: (value: Row, row: Row) => Row; show?: (row: Row) => boolean; detail?: string; danger?: boolean };
-export type Dataset = { label: string; resource?: string; path?: string; columns: string[]; actions?: Action[]; create?: Action; id?: string };
+export type Dataset = { label: string; resource?: string; path?: string; columns: string[]; actions?: Action[]; create?: Action; id?: string; /** reshapes each row before it is shown, e.g. to lift settings out of a nested object */ map?: (row: Row) => Row };
 
 export const text = (v: unknown): string => (v == null ? "—" : typeof v === "object" ? JSON.stringify(v) : String(v));
 export const rowId = (r: Row) => String(r.id ?? r.profile_id);
@@ -270,7 +270,7 @@ export function Workbench({ datasets, description, detail }: { datasets: Dataset
     refetchInterval: 15000,
   });
   const q = search.trim().toLowerCase();
-  const rows = (data.data ?? []).filter((r) => !q || JSON.stringify(r).toLowerCase().includes(q));
+  const rows = (data.data ?? []).map((r) => (tab.map ? tab.map(r) : r)).filter((r) => !q || JSON.stringify(r).toLowerCase().includes(q));
   const loaded = data.data?.length ?? 0;
   // the first column is the row's "name"; on phones each row becomes a card with it as the heading
   // …so a name, title or code leads when there is one, and the raw ID stays in the details panel

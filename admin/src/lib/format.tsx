@@ -12,6 +12,7 @@ const SPECIAL: Record<string, string> = {
   id: "ID", profile_id: "Account ID", city_id: "City", vendor_id: "Vendor", order_id: "Order", rider_id: "Rider", customer_id: "Customer", actor_id: "Staff ID", actor_name: "Staff", target_id: "Target",
   is_active: "Active", is_open: "Open", is_available: "Available", lat: "Latitude", lng: "Longitude", mime: "File type", city_ids: "Cities", image_url: "Image", logo_url: "Logo",
   delivered_30d: "Delivered (30 days)", sales_30d_kobo: "Sales (30 days)", avg_delivery_seconds: "Average delivery time", captured_at: "Last location", location_stale: "Location out of date",
+  referrer_reward_kobo: "Inviter gets", referee_reward_kobo: "New customer gets", minimum_order_kobo: "Minimum first order", hold_days: "Wait before paying (days)", expiry_days: "Order within (days)", referrer_cap: "Rewards per customer",
   device_sends: "Sent to devices", inbox_reads: "Read in app", used_count: "Times used", max_uses: "Use limit", send_at: "Send time",
   initial_radius_m: "First search distance", max_radius_m: "Furthest search distance", radius_step_m: "Widen by", expansion_seconds: "Widen every", offer_seconds: "Time to accept", search_seconds: "Give up after",
   location_max_age_seconds: "Oldest location allowed", max_accuracy_m: "Least GPS accuracy allowed", surge_bps: "Surge", commission_bps: "Commission", vendor_commission_bps: "Vendor commission", rider_delivery_bps: "Rider share of delivery",
