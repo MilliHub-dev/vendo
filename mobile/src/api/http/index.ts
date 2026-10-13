@@ -177,6 +177,15 @@ export const httpApi: ApiClient = {
     const { items } = await request<SPage<{ name: string; address: string; location: { lat: number; lng: number } }>>('GET', '/v1/maps/search', { query: { city_id: cityId(), q: query.trim(), limit: 8 } });
     return items.map((p) => ({ address: p.address.toLowerCase().startsWith(p.name.toLowerCase()) ? p.address : `${p.name}, ${p.address}`, lat: p.location.lat, lng: p.location.lng }));
   },
+  async reversePlace(lat, lng) {
+    const { items } = await request<SPage<{ name: string; address: string }>>('GET', '/v1/maps/reverse', { query: { city_id: cityId(), lat, lng } });
+    // the pin stays exactly where the phone is; only the wording comes from the lookup
+    return { lat, lng, address: items[0]?.address ?? 'My current location' };
+  },
+  async getRoute(from, to) {
+    const r = await request<{ geometry?: { coordinates: [number, number][] } }>('POST', '/v1/maps/route', { body: { city_id: cityId(), pickup: { lat: from.lat, lng: from.lng }, dropoff: { lat: to.lat, lng: to.lng } } }).catch(() => null);
+    return r?.geometry?.coordinates ?? null;
+  },
   async listAddresses() {
     const { items } = await request<SPage<SAddress>>('GET', '/v1/me/addresses');
     return items.map(toAddress);

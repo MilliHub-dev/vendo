@@ -30,7 +30,7 @@ import type {
   VendorDetail,
   VerifyCodeResult,
   Wallet,
-} from './types';
+ LatLng } from './types';
 
 export interface ApiClient {
   // sign-up / login: email → code → (new users only) name + phone
@@ -49,6 +49,10 @@ export interface ApiClient {
 
   // places: search runs through our server (which holds the map provider), within the chosen city
   searchPlaces(query: string): Promise<Place[]>;
+  /** The address at a point (the phone's current location). Fails if the point is outside the chosen city. */
+  reversePlace(lat: number, lng: number): Promise<Place>;
+  /** The road route between two points, as [lng, lat] pairs for the map. Null when it can't be worked out. */
+  getRoute(from: LatLng, to: LatLng): Promise<[number, number][] | null>;
   listAddresses(): Promise<SavedAddress[]>;
   saveAddress(label: string, place: Place): Promise<SavedAddress>;
   deleteAddress(id: string): Promise<void>;

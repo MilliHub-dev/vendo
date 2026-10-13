@@ -3,6 +3,6 @@ export { Button } from './Button';
 export { Card } from './Card';
 export { EmptyState } from './EmptyState';
 export { Input } from './Input';
-export { Screen } from './Screen';
+export { Screen, TabBarSpace } from './Screen';
 export { Sheet } from './Sheet';
 export { Text } from './Text';

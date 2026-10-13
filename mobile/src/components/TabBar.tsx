@@ -1,3 +1,4 @@
+import { GlassView } from 'expo-glass-effect';
 import { useRouter } from 'expo-router';
 import { TabTrigger, type TabTriggerSlotProps } from 'expo-router/ui';
 import { ClipboardList, House, Send, ShoppingBag, User, type LucideIcon } from 'lucide-react-native';
@@ -5,6 +6,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { cartCount } from '@/lib/cart';
+import { hasGlass } from '@/lib/glass';
 import { useCart } from '@/store/cart';
 import { fonts, radius, useTheme } from '@/theme';
 
@@ -15,8 +17,8 @@ export function TabBar() {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
 
-  return (
-    <View style={[styles.bar, { backgroundColor: colors.tabBar, borderTopColor: colors.line, paddingBottom: Math.max(insets.bottom, 10) }]}>
+  const tabs = (
+    <>
       <TabTrigger name="home" asChild>
         <TabButton icon={House} label="Home" />
       </TabTrigger>
@@ -30,9 +32,25 @@ export function TabBar() {
       <TabTrigger name="profile" asChild>
         <TabButton icon={User} label="Profile" />
       </TabTrigger>
-    </View>
+    </>
   );
+
+  // iOS 26+: a floating Liquid Glass bar that the screen scrolls underneath
+  if (hasGlass) {
+    return (
+      <GlassView glassEffectStyle="regular" isInteractive style={[styles.glass, { bottom: glassBarBottom(insets.bottom) }]}>
+        {tabs}
+      </GlassView>
+    );
+  }
+
+  return <View style={[styles.bar, { backgroundColor: colors.tabBar, borderTopColor: colors.line, paddingBottom: Math.max(insets.bottom, 10) }]}>{tabs}</View>;
 }
+
+const GLASS_BAR_HEIGHT = 66;
+const glassBarBottom = (safeBottom: number) => Math.max(safeBottom - 10, 12);
+/** How much of the screen's bottom the floating glass bar covers; screens leave this much room. */
+export const glassBarSpace = (safeBottom: number) => (hasGlass ? GLASS_BAR_HEIGHT + glassBarBottom(safeBottom) + 8 : 0);
 
 function TabButton({ icon: Icon, label, isFocused, ...props }: TabTriggerSlotProps & { icon: LucideIcon; label: string }) {
   const { colors } = useTheme();
@@ -57,7 +75,7 @@ function CartButton() {
         accessibilityRole="button"
         onPress={() => router.push('/cart')}
         accessibilityLabel={count ? `Cart, ${count} item${count === 1 ? '' : 's'}` : 'Cart, empty'}
-        style={({ pressed }) => [styles.cart, { backgroundColor: pressed ? colors.primaryPressed : colors.primary, borderColor: colors.tabBar }]}>
+        style={({ pressed }) => [styles.cart, { backgroundColor: pressed ? colors.primaryPressed : colors.primary, borderColor: colors.tabBar }, hasGlass && styles.cartOnGlass]}>
         <ShoppingBag color={colors.onPrimary} size={24} />
         {count > 0 && (
           <View style={[styles.badge, { backgroundColor: colors.heading, borderColor: colors.tabBar }]}>
@@ -73,6 +91,7 @@ function CartButton() {
 
 const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'flex-end', borderTopWidth: StyleSheet.hairlineWidth, paddingTop: 8 },
+  glass: { position: 'absolute', left: 16, right: 16, height: GLASS_BAR_HEIGHT, flexDirection: 'row', alignItems: 'flex-end', paddingBottom: 8, paddingHorizontal: 6, borderRadius: radius.pill, overflow: 'hidden' },
   tab: { flex: 1, alignItems: 'center', justifyContent: 'flex-end', gap: 4, minHeight: 48 },
   cart: {
     width: 60,
@@ -84,6 +103,8 @@ const styles = StyleSheet.create({
     marginTop: -28, // lifts the button above the bar
     marginBottom: 2,
   },
+  // inside the glass bar the cart sits level with the tabs, with no ring cut out of a solid bar
+  cartOnGlass: { width: 50, height: 50, borderWidth: 0, marginTop: 0, marginBottom: 0 },
   badge: {
     position: 'absolute',
     top: -4,

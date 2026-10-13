@@ -33,3 +33,6 @@ export function scheduleSlots(now = new Date(), days = 5): { day: string; slots:
   }
   return out;
 }
+
+/** The soonest a custom time can be: an hour from now, rounded up to the next quarter hour. */
+export const earliestSchedule = (now = Date.now()) => new Date(Math.ceil((now + 3_600_000) / 900_000) * 900_000);

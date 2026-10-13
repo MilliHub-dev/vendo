@@ -46,10 +46,22 @@ const matchingFields=[
  field('location_max_age_seconds','Oldest rider location allowed (seconds)','number',{min:15,max:300,hint:'Riders with older positions are skipped. e.g. 120'}),
  field('max_accuracy_m','Least GPS accuracy allowed (metres)','number',{min:5,max:500,hint:'e.g. 100'})];
 const financeFields=[field('enabled','Enable settlements','boolean'),field('vendor_commission_bps','Vendor commission (basis points)','number',{min:0,max:10000,hint:'Vendo’s share of food sales. 100 = 1%, so 1500 = 15%'}),field('rider_delivery_bps','Rider share of delivery fee (basis points)','number',{min:0,max:10000,hint:'100 = 1%, so 8000 = 80%'}),money('rider_fixed_kobo','Fixed rider earning'),field('settlement_hold_hours','Settlement hold hours','number',{min:1,max:720}),money('minimum_withdrawal_kobo','Minimum withdrawal')];
+const orderRuleFields:Field[]=[
+ field('schedule_min_lead_minutes','Soonest a scheduled order can be (minutes from now)','number',{min:15,max:1440,value:60,hint:'e.g. 60 = at least an hour ahead'}),
+ field('schedule_max_days','Furthest ahead an order can be scheduled (days)','number',{min:1,max:30,value:7}),
+ field('schedule_activation_lead_minutes','Start finding a rider this many minutes before','number',{min:1,max:1440,value:15,hint:'Must not be more than the soonest-order minutes above'}),
+ field('schedule_edit_cutoff_minutes','Stop changes this many minutes before','number',{min:1,max:1440,value:15,hint:'Must not be more than the rider-finding minutes above'}),
+ money('assigned_cancellation_fee_kobo','Fee for cancelling after a rider is assigned'),
+ field('food_cancel_after_accept','Customer can cancel food after the vendor accepts','boolean'),
+ field('unpaid_timeout_minutes','Cancel unpaid orders after (minutes)','number',{min:5,max:1440,value:30}),
+ field('vendor_timeout_minutes','Vendor must respond within (minutes)','number',{min:1,max:120,value:10}),
+ field('dispute_window_hours','Customer can report a problem for (hours after delivery)','number',{min:1,max:720,value:48}),
+];
 export function CitiesPage(){return <Workbench datasets={[{label:'Cities',path:'/v1/admin/cities',columns:['id','name','is_active','base_fare_kobo','per_km_rate_kobo','minimum_delivery_fee_kobo','minimum_food_subtotal_kobo','surge_bps','opens_at','closes_at'],actions:[
  {label:'Edit pricing',path:r=>`/v1/admin/cities/${rowId(r)}/pricing`,method:'PUT',fields:[field('is_active','Active service city','boolean'),money('base_fare_kobo','Base fare'),money('per_km_rate_kobo','Per kilometre'),money('minimum_delivery_fee_kobo','Minimum delivery'),money('minimum_food_subtotal_kobo','Minimum food subtotal'),field('surge_bps','Surge (basis points)','number',{min:10000,max:50000,hint:'10000 = normal price, 13000 = 1.3×'}),field('opens_at','Opens (HH:MM:SS, blank for unrestricted)','text',{nullable:true}),field('closes_at','Closes (HH:MM:SS)','text',{nullable:true})]},
  {label:'Set service boundary',path:r=>`/v1/admin/cities/${rowId(r)}/service-area`,method:'PUT',fields:[field('polygon','Boundary JSON array of {lat,lng} points','json')]},
  {label:'Create finance policy',path:r=>`/v1/admin/cities/${rowId(r)}/finance-policies`,fields:financeFields,danger:true,detail:'These terms apply to future orders. Enter the agreed business rates; no rates are preselected.'},
+ {label:'Set order rules',path:r=>`/v1/admin/cities/${rowId(r)}/order-policy`,method:'PUT',detail:'Scheduling, cancellations and time limits for orders in this city. Without this, customers cannot schedule an order for later. Saving replaces the city’s current order rules.',fields:orderRuleFields},
  {label:'Set matching policy',path:r=>`/v1/admin/cities/${rowId(r)}/matching-policy`,method:'PUT',detail:'How riders are found for an order. Without this, riders in the city cannot go online.',fields:matchingFields}
  ]}]}/>;}
 const bannerFields=[field('title','Title'),field('body','Body','text',{optional:true}),field('city_id','City ID (blank = all cities)','text',{nullable:true}),field('image_url','HTTPS banner image URL','text',{nullable:true}),field('action','Tap action','select',{options:['food','dispatch','wallet','vendor']}),field('vendor_id','Vendor ID (required for vendor action)','text',{nullable:true}),field('starts_at','Starts','datetime-local'),field('ends_at','Ends','datetime-local'),field('active','Active','boolean'),field('priority','Priority','number',{min:0,max:100})];

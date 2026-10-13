@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import { createContext, useContext } from 'react';
 import { ScrollView, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -17,10 +18,14 @@ type Props = {
   bleed?: boolean;
 };
 
+/** Room to leave at the bottom of a screen for a tab bar that floats over the content (the glass bar on iOS). 0 when the bar sits below it. */
+export const TabBarSpace = createContext(0);
+
 export function Screen({ children, scroll = true, safeTop, footer, contentStyle, bleed }: Props) {
   const { colors } = useTheme();
   const insets = useSafeAreaInsets();
-  const padding = { paddingTop: (safeTop ? insets.top : 0) + spacing.lg, ...(bleed ? { paddingHorizontal: 0 } : null) };
+  const under = useContext(TabBarSpace);
+  const padding = { paddingTop: (safeTop ? insets.top : 0) + spacing.lg, ...(under ? { paddingBottom: spacing.xxl + under } : null), ...(bleed ? { paddingHorizontal: 0 } : null) };
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bg }]}>

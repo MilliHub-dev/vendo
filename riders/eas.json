@@ -18,13 +18,15 @@
       },
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.vendoltd.com"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "env": {
         "EXPO_PUBLIC_API_URL": "https://api.vendoltd.com"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {

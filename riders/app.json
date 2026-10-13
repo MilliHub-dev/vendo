@@ -83,6 +83,14 @@
         "projectId": "e5fa753d-2ac8-47c2-9225-7db05144eebe"
       }
     },
-    "owner": "motaavendo"
+    "owner": "motaavendo",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e5fa753d-2ac8-47c2-9225-7db05144eebe",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    }
   }
 }

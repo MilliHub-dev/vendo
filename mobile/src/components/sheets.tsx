@@ -1,7 +1,7 @@
 import { ApiError } from '@/api/http/request';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
-import { Building2, CalendarClock, CreditCard, MapPin, Search, Star, Wallet, Zap } from 'lucide-react-native';
+import { Building2, CalendarClock, CreditCard, LocateFixed, MapPin, Minus, Plus, Search, Star, Wallet, Zap } from 'lucide-react-native';
 import { useEffect, useState } from 'react';
 // Sheets with their own form state render an inner component only while open, so the
 // state starts fresh each time without resetting it in an effect.
@@ -10,14 +10,15 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { api } from '@/api/client';
 import { useWallet } from '@/api/queries';
 import type { MenuItem, PaymentMethod, Place } from '@/api/types';
-import { dayLabel, formatDateTime, formatTime, scheduleSlots } from '@/lib/dates';
+import { dayLabel, earliestSchedule, formatDateTime, formatTime, scheduleSlots } from '@/lib/dates';
+import { currentCoords } from '@/lib/location';
 import { formatNaira } from '@/lib/money';
 import { useAddresses } from '@/store/addresses';
 import { useCity } from '@/store/city';
 import type { ItemChoice } from '@/store/cart';
 import { radius, spacing, useTheme } from '@/theme';
 
-import { Button, Chip, Input, OptionRow, Sheet, Stepper, Text, Thumb } from './ui';
+import { Button, Chip, IconButton, Input, OptionRow, Sheet, Stepper, Text, Thumb } from './ui';
 
 // ---------------------------------------------------------------- item
 
@@ -157,10 +158,23 @@ function AddressSheetOpen({ title, onClose, onSelect }: AddressSheetProps) {
     onSelect(place);
     onClose();
   };
+  // asks for the phone's position, then for the address there; a spot outside the city is refused by the server with a clear message
+  const here = useMutation({ mutationFn: async () => { const at = await currentCoords(); return api.reversePlace(at.lat, at.lng); }, onSuccess: choose });
 
   return (
     <Sheet visible onClose={onClose} title={title}>
       <Input placeholder="Search street, area or landmark" value={query} onChangeText={setQuery} autoCorrect={false} left={<Search size={18} color={colors.subtle} />} />
+      <Pressable accessibilityRole="button" disabled={here.isPending} onPress={() => here.mutate()} style={({ pressed }) => [styles.place, { borderColor: colors.line }, pressed && { opacity: 0.7 }]}>
+        <View style={[styles.payIcon, { backgroundColor: colors.primarySoft }]}>{here.isPending ? <ActivityIndicator color={colors.primary} /> : <LocateFixed size={18} color={colors.primary} />}</View>
+        <View style={{ flex: 1 }}>
+          <Text variant="bodyMedium" color="primary">
+            Use my current location
+          </Text>
+          <Text variant="small" color={here.isError ? 'danger' : 'muted'}>
+            {here.isError ? here.error.message : here.isPending ? 'Finding where you are…' : 'We’ll fill in the address where you are now'}
+          </Text>
+        </View>
+      </Pressable>
       {query.trim().length >= 3 ? (
         <PlaceResults {...results} onSelect={choose} />
       ) : (
@@ -230,6 +244,13 @@ export function WhenPicker({ value, onChange, nowLabel, nowHint }: { value: stri
   const [open, setOpen] = useState(false);
   const days = scheduleSlots();
   const [day, setDay] = useState(0);
+  // a time of the customer's own choosing, in 15-minute steps, at least an hour from now
+  const [custom, setCustom] = useState<Date | null>(null);
+  const startCustom = () => {
+    const first = days[day]?.slots[0] ?? earliestSchedule();
+    setCustom(new Date(Math.max(first.getTime(), earliestSchedule().getTime())));
+  };
+  const nudge = (minutes: number) => setCustom((c) => (c ? new Date(Math.max(earliestSchedule().getTime(), c.getTime() + minutes * 60_000)) : c));
   const icon = (Icon: typeof Zap) => (
     <View style={[styles.payIcon, { backgroundColor: colors.primarySoft }]}>
       <Icon size={18} color={colors.primary} />
@@ -242,7 +263,16 @@ export function WhenPicker({ value, onChange, nowLabel, nowHint }: { value: stri
       <Sheet visible={open} onClose={() => setOpen(false)} title="Schedule for later">
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
           {days.map((d, i) => (
-            <Chip key={d.day} label={d.day} selected={i === day} onPress={() => setDay(i)} />
+            <Chip
+              key={d.day}
+              label={d.day}
+              selected={i === day}
+              onPress={() => {
+                setDay(i);
+                // keep the chosen clock time, on the new day
+                if (custom) setCustom(new Date(Math.max(earliestSchedule().getTime(), new Date(d.slots[0].getFullYear(), d.slots[0].getMonth(), d.slots[0].getDate(), custom.getHours(), custom.getMinutes()).getTime())));
+              }}
+            />
           ))}
         </ScrollView>
         <View style={styles.slots}>
@@ -260,7 +290,33 @@ export function WhenPicker({ value, onChange, nowLabel, nowHint }: { value: stri
               />
             );
           })}
+          <Chip label="Custom time" selected={custom !== null} onPress={() => (custom ? setCustom(null) : startCustom())} />
         </View>
+        {custom ? (
+          <View style={[styles.custom, { backgroundColor: colors.surfaceAlt }]}>
+            <Text variant="small" color="muted" center>
+              {dayLabel(custom)}
+            </Text>
+            <View style={styles.customRow}>
+              <IconButton icon={Minus} label="15 minutes earlier" onPress={() => nudge(-15)} />
+              <Text variant="title" style={{ minWidth: 130 }} center accessibilityLiveRegion="polite">
+                {formatTime(custom)}
+              </Text>
+              <IconButton icon={Plus} label="15 minutes later" onPress={() => nudge(15)} />
+            </View>
+            <View style={styles.customRow}>
+              <Chip label="− 1 hour" onPress={() => nudge(-60)} />
+              <Chip label="+ 1 hour" onPress={() => nudge(60)} />
+            </View>
+            <Button
+              title={`Set ${formatDateTime(custom.toISOString())}`}
+              onPress={() => {
+                onChange(custom.toISOString());
+                setOpen(false);
+              }}
+            />
+          </View>
+        ) : null}
         <Text variant="small" color="subtle">
           We start finding a rider about 15 minutes before {days[day] ? dayLabel(days[day].slots[0]).toLowerCase() : 'the'} pickup time.
         </Text>
@@ -295,5 +351,7 @@ const styles = StyleSheet.create({
   payIcon: { width: 40, height: 40, borderRadius: radius.md, alignItems: 'center', justifyContent: 'center' },
   place: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.md, borderBottomWidth: StyleSheet.hairlineWidth },
   slots: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  custom: { gap: spacing.md, padding: spacing.lg, borderRadius: radius.lg },
+  customRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.md },
   stars: { flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, paddingVertical: spacing.sm },
 });

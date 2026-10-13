@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCity } from '@/store/city';
 
 import { api } from './client';
-import type { ChatMessage, City, CreateOrderRequest, ProfileDetails, QuoteRequest, TopUpChannel, VendorCategory } from './types';
+import type { ChatMessage, City, CreateOrderRequest, ProfileDetails, QuoteRequest, TopUpChannel, VendorCategory, LatLng } from './types';
 
 export const keys = {
   me: ['me'] as const,
@@ -54,6 +54,8 @@ export function useSearch(q: string) {
 export const useOrders = (filter: 'active' | 'past') => useQuery({ queryKey: keys.orders(filter), queryFn: () => api.listOrders(filter), refetchInterval: 15_000 });
 export const useOrder = (id: string) => useQuery({ queryKey: keys.order(id), queryFn: () => api.getOrder(id), refetchInterval: 8000 });
 /** Polled every few seconds. TODO: use the server's tracking stream (/v1/orders/:id/tracking/stream). */
+/** The road route for the tracking map. It doesn't change during an order, so it is fetched once. */
+export const useRoute = (orderId: string, from?: LatLng, to?: LatLng) => useQuery({ queryKey: ['route', orderId], queryFn: () => api.getRoute(from!, to!), enabled: !!from && !!to, staleTime: Infinity, retry: 0 });
 export const useTracking = (orderId: string) => useQuery({ queryKey: keys.tracking(orderId), queryFn: () => api.getTracking(orderId), refetchInterval: 6000 });
 
 export const useWallet = () => useQuery({ queryKey: keys.wallet, queryFn: () => api.getWallet() });

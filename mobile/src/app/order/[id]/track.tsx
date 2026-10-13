@@ -3,8 +3,8 @@ import { Bike, House, MessageCircle, Navigation, PackageCheck, Phone, Share2, St
 import { useState } from 'react';
 import { ActivityIndicator, Linking, Share, StyleSheet, View } from 'react-native';
 
-import { useMessages, useOrder, useRateOrder, useTracking } from '@/api/queries';
-import { RouteMap } from '@/components/RouteMap';
+import { useMessages, useOrder, useRateOrder, useRoute, useTracking } from '@/api/queries';
+import { LiveMap } from '@/components/LiveMap';
 import { RatingSheet } from '@/components/sheets';
 import { Button, Card, IconButton, Screen, Text } from '@/components/ui';
 import { distanceMeters, formatDistance } from '@/lib/geo';
@@ -32,6 +32,7 @@ export default function TrackOrderScreen() {
   const router = useRouter();
   const { data: order, isPending } = useOrder(id);
   const { data: tracking } = useTracking(id);
+  const route = useRoute(id, order?.pickup, order?.dropoff);
   const cancelling = useCancelFlow(order);
   const rate = useRateOrder();
   const [rating, setRating] = useState(false);
@@ -53,7 +54,7 @@ export default function TrackOrderScreen() {
   return (
     <Screen>
       <View>
-        <RouteMap pickupLabel={order.vendor?.name ?? 'Pickup'} dropoffLabel={order.type === 'dispatch' ? (order.receiver?.name ?? 'Drop-off') : 'You'} progress={rider ? progress : undefined} height={260} />
+        <LiveMap pickup={order.pickup} dropoff={order.dropoff} rider={rider && live ? tracking?.rider : null} route={route.data} pickupLabel={order.vendor?.name ?? 'Pickup'} dropoffLabel={order.type === 'dispatch' ? (order.receiver?.name ?? 'Drop-off') : 'You'} progress={rider ? progress : undefined} height={300} />
         {live ? (
           <View style={[styles.live, { backgroundColor: colors.surface }]}>
             <View style={[styles.liveDot, { backgroundColor: colors.danger }]} />

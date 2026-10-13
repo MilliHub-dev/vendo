@@ -46,6 +46,12 @@
         {
           "color": "#0064FF"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Vendo uses your location to fill in your pickup or delivery address when you choose “Use my current location”."
+        }
       ]
     ],
     "experiments": {
@@ -57,6 +63,14 @@
         "projectId": "6dbe0135-ae24-4a8d-a981-323d95ed0c42"
       }
     },
-    "owner": "motaavendo"
+    "owner": "motaavendo",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/6dbe0135-ae24-4a8d-a981-323d95ed0c42",
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    }
   }
 }
