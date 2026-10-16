@@ -1,11 +1,10 @@
 // Local preview of the Vendo customer and rider apps, signed in with sample data, for importing
 // screens into Figma with the html.to.design Chrome extension.
 //
-//   node design/preview/server.mjs          both apps: customer on :4301, rider on :4302
-//   APP=customer PORT=8080 node server.mjs  one app on one port (how it runs on Railway)
+//   node design/preview/server.mjs   then open http://localhost:4300 (on Railway: the service's address)
 //
-// Each app is served together with its sample-data API on the same address (the builds call /v1/… on
-// whatever site they are opened from), so it works the same on a laptop and on a hosted domain.
+// One address for both apps: the first page asks which app to open and remembers the choice. Each app's
+// sample-data API is on the same address (the builds call /v1/… on whatever site they are opened from).
 //
 // Stores, menus and photos come from the live API (read-only, public); everything about the signed-in
 // person (orders, wallet, trips, earnings…) is invented here. Nothing is ever sent to the live API.
@@ -118,38 +117,41 @@ async function api(app, req, res, u) {
   }
 }
 
-function serve(app, port) {
-  const root = path.join(HERE, app);
-  const seed = `<script>(function(){var s=${JSON.stringify(seeds[app])};for(var k in s)if(!localStorage.getItem(k))localStorage.setItem(k,JSON.stringify(s[k]));})();</script>`;
+const CHOOSER = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vendo preview</title>
+<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0064ff;font-family:-apple-system,system-ui,sans-serif;color:#fff}main{text-align:center;padding:24px}h1{font-size:28px;margin:0 0 8px}p{opacity:.85;margin:0 0 28px}a{display:block;margin:12px auto;width:260px;padding:16px;border-radius:99px;background:#fff;color:#0a1633;font-weight:700;text-decoration:none}a.r{background:#0a1633;color:#fff}</style></head>
+<body><main><h1>Vendo app preview</h1><p>Sample data — nothing here is real or sent anywhere.</p><a href="/__app/customer">Customer app</a><a class="r" href="/__app/rider">Rider app</a></main></body></html>`;
+const appOf = (req) => (/(?:^|;\s*)vendo_app=(customer-app|rider-app)/.exec(req.headers.cookie ?? "") ?? [])[1];
+
+function serve(port) {
   http.createServer(async (req, res) => {
     const u = new URL(req.url, "http://localhost"), p = decodeURIComponent(u.pathname);
     if (p === "/health") return res.writeHead(200, { "content-type": "text/plain" }).end("ok");
+    // choosing an app (or switching): remember it and open it
+    if (p === "/__app/customer" || p === "/__app/rider") return res.writeHead(302, { "set-cookie": `vendo_app=${p.endsWith("rider") ? "rider-app" : "customer-app"}; Path=/; SameSite=Lax`, location: "/" }).end();
+    if (p === "/__switch") return res.writeHead(302, { "set-cookie": "vendo_app=; Path=/; Max-Age=0", location: "/" }).end();
+    const app = appOf(req);
+    if (!app) return res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }).end(CHOOSER);
     if (p.startsWith("/v1/")) return api(app, req, res, u);
-    if (p === "/__mode" && app === "rider-app") {
+    if (p === "/__mode") {
       for (const key of ["offer", "job"]) if (u.searchParams.has(key)) mode[key] = u.searchParams.get(key) === "1";
-      return res.writeHead(200, { "content-type": "text/plain; charset=utf-8" }).end(`The rider app now shows: ${mode.job ? "a delivery in progress" : mode.offer ? "a new order offer" : "online, waiting for orders"}. Reload the rider app.`);
+      return res.writeHead(302, { location: "/" }).end();
     }
+    const root = path.join(HERE, app);
+    const seed = `<script>(function(){var s=${JSON.stringify(seeds[app])};for(var k in s)if(!localStorage.getItem(k))localStorage.setItem(k,JSON.stringify(s[k]));})();</script>`;
     const file = [path.join(root, p), path.join(root, p + ".html"), path.join(root, p, "index.html")].find((f) => f.startsWith(root) && fs.existsSync(f) && fs.statSync(f).isFile()) ?? path.join(root, "index.html");
     const ext = path.extname(file);
     let body = fs.readFileSync(file);
     if (ext === ".html") body = body.toString().replace("<head>", "<head>" + seed);
-    res.writeHead(200, { "content-type": types[ext] ?? "application/octet-stream", "cache-control": ext === ".html" ? "no-cache" : "public, max-age=86400" }).end(body);
+    // the same file names exist in both apps, so nothing is cached across a switch
+    res.writeHead(200, { "content-type": types[ext] ?? "application/octet-stream", "cache-control": "no-cache", vary: "Cookie" }).end(body);
   }).listen(port, "0.0.0.0");
 }
 
-const only = process.env.APP;
-if (only) {
-  const app = only === "rider" ? "rider-app" : "customer-app";
-  serve(app, Number(process.env.PORT ?? 8080));
-  console.log(`Vendo ${only === "rider" ? "rider" : "customer"} app preview on port ${process.env.PORT ?? 8080}`);
-} else {
-  serve("customer-app", 4301);
-  serve("rider-app", 4302);
-  console.log(`Vendo preview with sample data
-  Customer app  http://localhost:4301
-  Rider app     http://localhost:4302
-  Rider app showing a new order:  http://localhost:4302/__mode?offer=1
-  Rider app showing a delivery:   http://localhost:4302/__mode?job=1
-  Back to waiting:                http://localhost:4302/__mode?offer=0&job=0
+const port = Number(process.env.PORT ?? 4300);
+serve(port);
+console.log(`Vendo app preview: http://localhost:${port}
+  Switch app:                     http://localhost:${port}/__switch
+  Rider app with a new order:     http://localhost:${port}/__mode?offer=1
+  Rider app with a delivery:      http://localhost:${port}/__mode?job=1
+  Rider app back to waiting:      http://localhost:${port}/__mode?offer=0&job=0
 Press Ctrl+C to stop.`);
-}
