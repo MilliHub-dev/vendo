@@ -3,7 +3,8 @@
 //
 //   node design/preview/server.mjs   then open http://localhost:4300 (on Railway: the service's address)
 //
-// One address for both apps: the first page asks which app to open and remembers the choice. Each app's
+// The first page is a board of every screen (light and dark) to view and download for mockups. From
+// there "Open customer app" / "Open rider app" opens the app itself; /__switch comes back to the board. Each app's
 // sample-data API is on the same address (the builds call /v1/… on whatever site they are opened from).
 //
 // Stores, menus and photos come from the live API (read-only, public); everything about the signed-in
@@ -117,9 +118,6 @@ async function api(app, req, res, u) {
   }
 }
 
-const CHOOSER = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Vendo preview</title>
-<style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#0064ff;font-family:-apple-system,system-ui,sans-serif;color:#fff}main{text-align:center;padding:24px}h1{font-size:28px;margin:0 0 8px}p{opacity:.85;margin:0 0 28px}a{display:block;margin:12px auto;width:260px;padding:16px;border-radius:99px;background:#fff;color:#0a1633;font-weight:700;text-decoration:none}a.r{background:#0a1633;color:#fff}</style></head>
-<body><main><h1>Vendo app preview</h1><p>Sample data — nothing here is real or sent anywhere.</p><a href="/__app/customer">Customer app</a><a class="r" href="/__app/rider">Rider app</a></main></body></html>`;
 const appOf = (req) => (/(?:^|;\s*)vendo_app=(customer-app|rider-app)/.exec(req.headers.cookie ?? "") ?? [])[1];
 
 function serve(port) {
@@ -129,8 +127,15 @@ function serve(port) {
     // choosing an app (or switching): remember it and open it
     if (p === "/__app/customer" || p === "/__app/rider") return res.writeHead(302, { "set-cookie": `vendo_app=${p.endsWith("rider") ? "rider-app" : "customer-app"}; Path=/; SameSite=Lax`, location: "/" }).end();
     if (p === "/__switch") return res.writeHead(302, { "set-cookie": "vendo_app=; Path=/; Max-Age=0", location: "/" }).end();
+    // the screen images for the board, at any time
+    if (p.startsWith("/screens/")) {
+      const f = path.join(HERE, p);
+      if (!f.startsWith(path.join(HERE, "screens")) || !fs.existsSync(f)) return res.writeHead(404).end();
+      return res.writeHead(200, { "content-type": "image/png", "cache-control": "public, max-age=3600" }).end(fs.readFileSync(f));
+    }
     const app = appOf(req);
-    if (!app) return res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" }).end(CHOOSER);
+    // no app chosen: the board of every screen, with links into the live apps
+    if (!app) return res.writeHead(200, { "content-type": "text/html; charset=utf-8", "cache-control": "no-cache" }).end(fs.readFileSync(path.join(HERE, "gallery/index.html")));
     if (p.startsWith("/v1/")) return api(app, req, res, u);
     if (p === "/__mode") {
       for (const key of ["offer", "job"]) if (u.searchParams.has(key)) mode[key] = u.searchParams.get(key) === "1";
@@ -149,8 +154,8 @@ function serve(port) {
 
 const port = Number(process.env.PORT ?? 4300);
 serve(port);
-console.log(`Vendo app preview: http://localhost:${port}
-  Switch app:                     http://localhost:${port}/__switch
+console.log(`Vendo screens board: http://localhost:${port}
+  Back to the board from an app:  http://localhost:${port}/__switch
   Rider app with a new order:     http://localhost:${port}/__mode?offer=1
   Rider app with a delivery:      http://localhost:${port}/__mode?job=1
   Rider app back to waiting:      http://localhost:${port}/__mode?offer=0&job=0

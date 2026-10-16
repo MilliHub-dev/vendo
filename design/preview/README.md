@@ -1,12 +1,14 @@
-# Vendo app preview (for Figma)
+# Vendo app screens
 
-Both apps, signed in with sample data, at one address. Open it, pick **Customer app** or **Rider app**.
+A board of every screen of both apps, in light and dark, like a Figma canvas. Designers can view each
+screen large and download it as a full iPhone screen (1179 × 2556 px, iPhone 15 / 16 Pro) for mockups,
+or download them all at once. The board also links into both apps, running with sample data.
 
 ## Put it on Railway
 
 1. In your Railway project: **New → GitHub Repo →** the Vendo repo.
 2. **Settings → Root Directory:** `design/preview`
-3. **Settings → Networking → Generate Domain**, then open that address.
+3. **Settings → Networking → Generate Domain**, then share that address with the designers.
 
 ## Or run it on your computer
 
@@ -16,19 +18,18 @@ node design/preview/server.mjs
 
 Then open http://localhost:4300
 
-## Get a screen into Figma
+## Using the board
 
-1. Install the **html.to.design** plugin in Figma and its extension in Chrome.
-2. Open the preview in Chrome in phone size (**⌥⌘I**, then the phone icon).
-3. Go to a screen, click the extension, choose **Import**.
+- **Light / Dark** switches every screen; **− / +** (or Ctrl + scroll) zooms.
+- Click a screen to see it large, then **Download PNG**. Or hover a screen and click **Download**.
+- **Download all (PNG)** saves a zip of every screen in both themes.
+- **Open customer app / Open rider app** opens the app itself. Go back to the board with `/__switch`.
+- In the rider app, add `/__mode?offer=1` (new order), `/__mode?job=1` (delivery in progress) or
+  `/__mode?offer=0&job=0` (normal) to the address, then reload.
 
-## Handy links (add them to the address)
+Names, orders and money are sample data; store names and photos are the real public listings. Nothing is
+sent to the live app.
 
-- `/__switch` — choose the other app
-- `/__mode?offer=1` — rider app shows a new order
-- `/__mode?job=1` — rider app shows a delivery in progress
-- `/__mode?offer=0&job=0` — rider app back to normal
-
-Nothing is real: names, orders and money are made up, and nothing is ever sent to the live app.
-Store names and photos are the real public listings.
-After changing the apps, rebuild the preview with `design/preview/build.sh`.
+The screen images are in `screens/`. They show the apps as they were when the images were made — ask for
+them to be re-shot after the apps change. After changing the apps, rebuild the live preview with
+`design/preview/build.sh`.
