@@ -1,8 +1,0 @@
-{
-  "name": "vendo-design-preview",
-  "private": true,
-  "type": "module",
-  "description": "Vendo customer and rider apps with sample data, for importing screens into Figma",
-  "engines": { "node": ">=20" },
-  "scripts": { "start": "node server.mjs" }
-}
