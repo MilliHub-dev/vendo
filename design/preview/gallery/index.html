@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
-:root{--canvas:#1e1e1e;--panel:#2c2c2c;--line:#3a3a3a;--text:#f2f2f2;--muted:#9a9a9a;--blue:#0064ff;--w:260px}
+:root{--canvas:#1e1e1e;--panel:#2c2c2c;--line:#3a3a3a;--text:#f2f2f2;--muted:#9a9a9a;--blue:#0064ff;--w:220px}
 *{box-sizing:border-box}
 body{margin:0;background:var(--canvas);color:var(--text);font-family:Outfit,-apple-system,system-ui,sans-serif;font-size:14px}
 header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 16px;background:var(--panel);border-bottom:1px solid var(--line)}
@@ -39,7 +39,7 @@ figure:hover figcaption button,figcaption button:focus{opacity:1}
 dialog{border:0;padding:0;background:transparent;max-width:none;max-height:none}
 dialog::backdrop{background:rgba(0,0,0,.82)}
 .view{display:flex;flex-direction:column;align-items:center;gap:14px}
-.view img{height:min(82vh,1000px);border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
+.view img{height:min(78vh,860px);border-radius:10px;box-shadow:0 20px 60px rgba(0,0,0,.6)}
 .view .bar{display:flex;align-items:center;gap:10px;color:var(--text)}
 @media (max-width:640px){main{padding:24px 16px 60px}.frames{gap:28px 16px}:root{--w:150px}}
 </style>
@@ -66,12 +66,12 @@ const APPS = [
 ];
 let scheme = "light", width = 260;
 const store = { get(k){ try { return localStorage.getItem(k); } catch { return null; } }, set(k,v){ try { localStorage.setItem(k,v); } catch {} } };
-scheme = store.get("scheme") || "light"; width = Number(store.get("width")) || (innerWidth < 640 ? 150 : 260);
+scheme = store.get("scheme") || "light"; width = Number(store.get("width")) || (innerWidth < 640 ? 150 : Math.max(160, Math.min(220, Math.floor((innerWidth - 96 - 4 * 32) / 5))));
 const src = (app, s) => `/screens/${scheme}/${app}/${s}.png`;
 const fileName = (app, s) => `vendo-${app}-${s}-${scheme}.png`;
 function render(){
   document.documentElement.style.setProperty("--w", width + "px");
-  document.getElementById("zoom").textContent = Math.round(width / 260 * 100) + "%";
+  document.getElementById("zoom").textContent = Math.round(width / 220 * 100) + "%";
   document.querySelectorAll("[data-scheme]").forEach(b => b.setAttribute("aria-pressed", b.dataset.scheme === scheme));
   document.getElementById("board").innerHTML = APPS.map(a => `<section><h2>${a.title} <small>${a.screens.length} screens · ${scheme}</small></h2><div class="frames">${a.screens.map(([s, name]) =>
     `<figure><figcaption><span>${name}</span><button data-dl="${a.key}/${s}" aria-label="Download ${name}">Download</button></figcaption><button class="shot" data-open="${a.key}/${s}" data-name="${name}" style="border:0;padding:0"><img loading="lazy" src="${src(a.key, s)}" alt="${name}"></button></figure>`).join("")}</div></section>`).join("");

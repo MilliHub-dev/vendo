@@ -118,6 +118,11 @@ async function api(app, req, res, u) {
   }
 }
 
+// On a desktop the app is shown in a phone-sized frame instead of stretched across the window. The transform
+// makes the frame the reference for the app's full-screen layers (sheets, pop-ups), so they stay inside it.
+const PHONE_FRAME = `<style>@media (min-width:600px){html{min-height:100%;display:grid;place-items:center;background:#1e1e1e}body{position:relative;width:393px!important;height:min(852px,calc(100vh - 32px))!important;min-height:0!important;margin:16px auto;overflow:hidden;border-radius:28px;box-shadow:0 0 0 10px #0b0f1a,0 30px 80px rgba(0,0,0,.55);transform:translateZ(0)}}</style>`
+  // and the app measures the frame, not the window, so screens sized to the screen (the promo banner) fit it
+  + `<script>if(innerWidth>=600){var h=Math.min(852,innerHeight-32);try{Object.defineProperty(window,'visualViewport',{configurable:true,value:{width:393,height:h,scale:1,addEventListener:function(){},removeEventListener:function(){}}})}catch(e){}}</script>`;
 const appOf = (req) => (/(?:^|;\s*)vendo_app=(customer-app|rider-app)/.exec(req.headers.cookie ?? "") ?? [])[1];
 
 function serve(port) {
@@ -146,7 +151,7 @@ function serve(port) {
     const file = [path.join(root, p), path.join(root, p + ".html"), path.join(root, p, "index.html")].find((f) => f.startsWith(root) && fs.existsSync(f) && fs.statSync(f).isFile()) ?? path.join(root, "index.html");
     const ext = path.extname(file);
     let body = fs.readFileSync(file);
-    if (ext === ".html") body = body.toString().replace("<head>", "<head>" + seed);
+    if (ext === ".html") body = body.toString().replace("<head>", "<head>" + seed + PHONE_FRAME);
     // the same file names exist in both apps, so nothing is cached across a switch
     res.writeHead(200, { "content-type": types[ext] ?? "application/octet-stream", "cache-control": "no-cache", vary: "Cookie" }).end(body);
   }).listen(port, "0.0.0.0");
