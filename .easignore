@@ -40,3 +40,4 @@ web-build/
 
 # store listing images, not part of any app build
 store-assets/
+design/
