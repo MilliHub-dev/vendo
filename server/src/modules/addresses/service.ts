@@ -5,12 +5,12 @@ import { insidePolygon, cityOpen } from '../food/pricing.js';
 import type { Routing } from '../food/schema.js';
 import type { Identity } from '../auth/schema.js';
 import type { ProfileService } from '../users/service.js';
-import { polygonSchema, type AddressRepository, type Geocoder, type ServiceCity, type searchSchema } from './schema.js';
+import { polygonSchema, type AddressRepository, type Geocoder, type PlaceAutocomplete, type ServiceCity, type placeQuerySchema, type searchSchema, type suggestQuerySchema } from './schema.js';
 export function citySummary(city: ServiceCity) {
   return { id: city.id, name: city.name, country: city.country, is_active: city.is_active, is_open: city.is_active && cityOpen(city), service_area_configured: polygonSchema.safeParse(city.service_polygon).success, opens_at: city.opens_at, closes_at: city.closes_at };
 }
 export class AddressService {
-  constructor(readonly repository: AddressRepository, private readonly profiles: ProfileService, private readonly geocoder: Geocoder, private readonly routing: Routing) {}
+  constructor(readonly repository: AddressRepository, private readonly profiles: ProfileService, private readonly geocoder: Geocoder, private readonly routing: Routing, private readonly autocomplete?: PlaceAutocomplete) {}
   async active(identity: Identity) { await this.profiles.get(identity); }
   async cities() { return (await this.repository.cities()).map(citySummary); }
   async city(id: string) {
@@ -40,6 +40,21 @@ export class AddressService {
     if (input.lat !== undefined && !insidePolygon(bias, polygon)) throw new ApiError(400, 'OUTSIDE_SERVICE_AREA', 'Search bias must be inside the selected city service area.');
     const places = await this.geocoder.search({ q: input.q, limit: input.limit, bias, bbox });
     return places.filter((place) => insidePolygon(place.location, polygon)).slice(0, input.limit).map((place) => ({ ...place, city_id: city.id }));
+  }
+  async suggest(identity: Identity, input: z.infer<typeof suggestQuerySchema>) {
+    await this.active(identity);
+    if (!this.autocomplete) throw new ApiError(503, 'PROVIDER_NOT_CONFIGURED', 'Address suggestions are not configured.');
+    const city = await this.city(input.city_id), bbox = bounds(this.boundary(city));
+    return this.autocomplete.suggest({ q: input.q, session: input.session, bbox, bias: { lat: (bbox[1] + bbox[3]) / 2, lng: (bbox[0] + bbox[2]) / 2 } });
+  }
+  async place(identity: Identity, input: z.infer<typeof placeQuerySchema>) {
+    await this.active(identity);
+    if (!this.autocomplete) throw new ApiError(503, 'PROVIDER_NOT_CONFIGURED', 'Address suggestions are not configured.');
+    const city = await this.city(input.city_id), polygon = this.boundary(city);
+    const place = await this.autocomplete.place(input.id, input.session);
+    // the suggestions are limited to a box around the city; the delivery area itself may be smaller
+    if (!insidePolygon(place.location, polygon)) throw new ApiError(400, 'OUTSIDE_SERVICE_AREA', `That place is outside the ${city.name} delivery area.`);
+    return { ...place, city_id: city.id };
   }
   async reverse(identity: Identity, point: Point, cityId: string) {
     await this.active(identity);

@@ -37,6 +37,11 @@ test('Addresses and maps API/SQL: ownership, partial edits/defaults, city prefer
     { id: 'osm:N:2', name: 'Outside', address: 'Outside Kaduna', location: { lat: 12, lng: 7.5 } },
   ];
   fixture.dependencies.geocoder = { async search(input) { searchCalls.push(input); return candidates; }, async reverse() { return candidates; } };
+  const suggestCalls: { bbox: number[]; session: string }[] = [];
+  fixture.dependencies.placeAutocomplete = {
+    async suggest(input) { suggestCalls.push(input); return [{ id: 'g1', name: 'Kawo Road', address: 'Kawo Road, Kaduna' }, { id: 'g2', name: 'Outside', address: 'Outside Kaduna' }]; },
+    async place(id) { const c = candidates[id === 'g1' ? 0 : 1]!; return { ...c, id: `google:${id}` }; },
+  };
   let routingCalls = 0;
   fixture.dependencies.routing.route = async () => { routingCalls++; return { distance_m: 1500, duration_s: 300, geometry: { type: 'LineString', coordinates: [[7.5,10.5],[7.6,10.6]] } }; };
   const app = await buildApp(readEnv({ NODE_ENV: 'test' }), { ...fixture.dependencies, profiles, addresses }); t.after(() => app.close());
@@ -95,6 +100,17 @@ test('Addresses and maps API/SQL: ownership, partial edits/defaults, city prefer
   const reverse = await app.inject({ url: `/v1/maps/reverse?city_id=${cityId}&lat=10.5&lng=7.5`, headers: headers() });
   assert.equal(reverse.json().items.length, 1);
   assert.equal((await app.inject({ url: `/v1/maps/reverse?city_id=${cityId}&lat=12&lng=7.5`, headers: headers() })).statusCode, 400);
+  // type-ahead search: suggestions limited to the city's box, then the chosen place, refused if outside the delivery area
+  const session = 'session-1234';
+  assert.equal((await app.inject(`/v1/maps/autocomplete?city_id=${cityId}&q=Ka&session=${session}`)).statusCode, 401);
+  const suggest = await app.inject({ url: `/v1/maps/autocomplete?city_id=${cityId}&q=Ka&session=${session}`, headers: headers() });
+  assert.equal(suggest.statusCode, 200, suggest.body); assert.equal(suggest.json().items.length, 2);
+  assert.deepEqual(suggestCalls[0]!.bbox, [7, 10, 8, 11]); assert.equal(suggestCalls[0]!.session, session);
+  assert.equal((await app.inject({ url: `/v1/maps/autocomplete?city_id=${cityId}&q=Ka&session=bad!`, headers: headers() })).statusCode, 400);
+  const chosen = await app.inject({ url: `/v1/maps/place?city_id=${cityId}&id=g1&session=${session}`, headers: headers() });
+  assert.equal(chosen.statusCode, 200, chosen.body); assert.deepEqual(chosen.json().location, { lat: 10.5, lng: 7.5 }); assert.equal(chosen.json().city_id, cityId);
+  const outside = await app.inject({ url: `/v1/maps/place?city_id=${cityId}&id=g2&session=${session}`, headers: headers() });
+  assert.equal(outside.statusCode, 400); assert.equal(outside.json().error.code, 'OUTSIDE_SERVICE_AREA');
   const route = (dropoff = { lat: 10.6, lng: 7.6 }) => app.inject({ method: 'POST', url: '/v1/maps/route', headers: headers(), payload: { city_id: cityId, pickup: input.location, dropoff } });
   assert.equal((await route({ lat: 12, lng: 7.5 })).statusCode, 400); assert.equal(routingCalls, 0);
   const road = await route();

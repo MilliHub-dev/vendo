@@ -177,6 +177,20 @@ export const httpApi: ApiClient = {
     const { items } = await request<SPage<{ name: string; address: string; location: { lat: number; lng: number } }>>('GET', '/v1/maps/search', { query: { city_id: cityId(), q: query.trim(), limit: 8 } });
     return items.map((p) => ({ address: p.address.toLowerCase().startsWith(p.name.toLowerCase()) ? p.address : `${p.name}, ${p.address}`, lat: p.location.lat, lng: p.location.lng }));
   },
+  async suggestPlaces(query, session) {
+    try {
+      const { items } = await request<SPage<{ id: string; name: string; address: string }>>('GET', '/v1/maps/autocomplete', { query: { city_id: cityId(), q: query.trim(), session } });
+      return items.map((s) => ({ id: s.id, title: s.name, subtitle: s.address.toLowerCase().startsWith(s.name.toLowerCase()) ? s.address.slice(s.name.length).replace(/^,\s*/, '') : s.address }));
+    } catch (error) {
+      // a server without Google set up yet: fall back to its own search, which already knows each position
+      if (!(error instanceof ApiError) || !(error.status === 404 || error.code === 'PROVIDER_NOT_CONFIGURED')) throw error;
+      return (await this.searchPlaces(query)).map((p, i) => { const [title, ...rest] = p.address.split(', '); return { id: `local-${i}`, title, subtitle: rest.join(', '), place: p }; });
+    }
+  },
+  async placeDetails(id, session) {
+    const p = await request<{ address: string; location: { lat: number; lng: number } }>('GET', '/v1/maps/place', { query: { city_id: cityId(), id, session } });
+    return { lat: p.location.lat, lng: p.location.lng, address: p.address };
+  },
   async reversePlace(lat, lng) {
     const { items } = await request<SPage<{ name: string; address: string }>>('GET', '/v1/maps/reverse', { query: { city_id: cityId(), lat, lng } });
     // the pin stays exactly where the phone is; only the wording comes from the lookup

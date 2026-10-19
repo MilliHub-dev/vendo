@@ -35,6 +35,8 @@ const schema = z.object({
   DISPATCH_DELIVERY_CODE_SECRET: z.preprocess((value) => value === '' ? undefined : value, z.string().min(32).optional()),
   PHOTON_BASE_URL: optionalUrl,
   MAPBOX_ACCESS_TOKEN_SERVER: optionalText,
+  // Google Places (New) for type-ahead address search in the customer app. Server-side only.
+  GOOGLE_MAPS_API_KEY: optionalText,
   REDIS_URL: optionalUrl,
   SEND_SMS_HOOK_SECRET: optionalText,
   BREVO_API_KEY: optionalText,

@@ -36,6 +36,9 @@ export type Place = LatLng & {
 
 export type SavedAddress = Place & { id: string; label: string };
 
+/** A search suggestion. `place` is filled in when its position is already known; otherwise it is looked up when chosen. */
+export type PlaceSuggestion = { id: string; title: string; subtitle?: string; place?: Place };
+
 export type User = {
   id: string;
   name: string;

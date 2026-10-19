@@ -15,6 +15,16 @@ export const searchSchema = z.strictObject({ city_id: z.uuid(), q: z.string().tr
 export const reverseSchema = z.strictObject({ city_id: z.uuid(), lat: z.coerce.number().min(-90).max(90), lng: z.coerce.number().min(-180).max(180) });
 export const placeSchema = z.object({ id: z.string(), name: z.string(), address: z.string(), location: pointSchema, city_id: z.uuid().optional() });
 export type Place = z.infer<typeof placeSchema>;
+const sessionToken = z.string().regex(/^[A-Za-z0-9_-]{8,64}$/);
+export const suggestQuerySchema = z.strictObject({ city_id: z.uuid(), q: z.string().trim().min(2).max(120), session: sessionToken });
+export const placeQuerySchema = z.strictObject({ city_id: z.uuid(), id: z.string().trim().min(1).max(500), session: sessionToken });
+export const suggestionSchema = z.object({ id: z.string(), name: z.string(), address: z.string() });
+export type Suggestion = z.infer<typeof suggestionSchema>;
+/** Type-ahead address search: suggestions first (no position), then the chosen one's position. */
+export interface PlaceAutocomplete {
+  suggest(input: { q: string; bias: Point; bbox: [number, number, number, number]; session: string }): Promise<Suggestion[]>;
+  place(id: string, session: string): Promise<Place>;
+}
 export interface Geocoder {
   search(input: { q: string; limit: number; bias: Point; bbox: [number, number, number, number] }): Promise<Place[]>;
   reverse(point: Point): Promise<Place[]>;

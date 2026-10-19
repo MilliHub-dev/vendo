@@ -9,7 +9,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 
 import { api } from '@/api/client';
 import { useWallet } from '@/api/queries';
-import type { MenuItem, PaymentMethod, Place } from '@/api/types';
+import type { MenuItem, PaymentMethod, Place, PlaceSuggestion } from '@/api/types';
 import { dayLabel, earliestSchedule, formatDateTime, formatTime, scheduleSlots } from '@/lib/dates';
 import { currentCoords } from '@/lib/location';
 import { formatNaira } from '@/lib/money';
@@ -190,39 +190,54 @@ function AddressSheetOpen({ title, onClose, onSelect }: AddressSheetProps) {
   );
 }
 
+const newSession = () => `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+
+/**
+ * Type-ahead address search in the customer's city (Google Places, through our server). One "session"
+ * covers the typing and the place chosen, which is how Google prices it; a new one starts after each pick.
+ */
 export function usePlaceSearch(query: string) {
   const [debounced, setDebounced] = useState(query);
+  const [session, setSession] = useState(newSession);
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(query.trim()), 350);
+    const t = setTimeout(() => setDebounced(query.trim()), 300);
     return () => clearTimeout(t);
   }, [query]);
   const cityId = useCity((c) => c.city?.id);
-  // searched on our server, inside the customer's city
-  return useQuery({ queryKey: ['places', cityId, debounced], queryFn: () => api.searchPlaces(debounced), enabled: debounced.length >= 3 && !!cityId, staleTime: 300_000 });
+  const results = useQuery({ queryKey: ['places', cityId, debounced, session], queryFn: () => api.suggestPlaces(debounced, session), enabled: debounced.length >= 3 && !!cityId, staleTime: 300_000 });
+  const chosen = useMutation({ mutationFn: (s: PlaceSuggestion) => (s.place ? Promise.resolve(s.place) : api.placeDetails(s.id, session)), onSuccess: () => setSession(newSession()) });
+  return { ...results, chosen };
 }
 
-export function PlaceResults({ data, isFetching, isError, error, onSelect }: { data?: Place[]; isFetching: boolean; isError: boolean; error?: Error | null; onSelect: (p: Place) => void }) {
+export function PlaceResults({ data, isFetching, isError, error, chosen, onSelect }: ReturnType<typeof usePlaceSearch> & { onSelect: (p: Place) => void }) {
   const { colors } = useTheme();
   // say what the server said: "no connection" and "search isn't set up for this city" need different fixes
   if (isError) return <Text color="danger">{error instanceof ApiError && error.status ? `Address search isn’t available right now. ${error.message}` : 'Address search isn’t available right now. Check your connection and try again.'}</Text>;
   if (!data && isFetching) return <ActivityIndicator color={colors.primary} style={{ marginVertical: spacing.lg }} />;
   if (data && data.length === 0) return <Text color="muted">No places found. Try a nearby landmark or a main road.</Text>;
+  const google = data?.some((s) => !s.place);
   return (
     <>
-      {data?.map((p, i) => {
-        const [first, ...rest] = p.address.split(', ');
-        return <PlaceRow key={`${p.lat},${p.lng},${i}`} title={first} subtitle={rest.join(', ')} onPress={() => onSelect(p)} />;
-      })}
+      {data?.map((s) => (
+        <PlaceRow key={s.id} title={s.title} subtitle={s.subtitle} loading={chosen.isPending && chosen.variables?.id === s.id} onPress={() => !chosen.isPending && chosen.mutate(s, { onSuccess: onSelect })} />
+      ))}
+      {chosen.isError ? <Text color="danger">{chosen.error.message}</Text> : null}
+      {/* Google's terms: suggestions shown without a Google map carry its attribution */}
+      {google ? (
+        <Text variant="caption" color="subtle" style={{ textAlign: 'right' }}>
+          Powered by Google
+        </Text>
+      ) : null}
     </>
   );
 }
 
-function PlaceRow({ title, subtitle, onPress }: { title: string; subtitle?: string; onPress: () => void }) {
+function PlaceRow({ title, subtitle, loading, onPress }: { title: string; subtitle?: string; loading?: boolean; onPress: () => void }) {
   const { colors } = useTheme();
   return (
     <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.place, { borderColor: colors.line }, pressed && { opacity: 0.7 }]}>
       <View style={[styles.payIcon, { backgroundColor: colors.primarySoft }]}>
-        <MapPin size={18} color={colors.primary} />
+        {loading ? <ActivityIndicator color={colors.primary} /> : <MapPin size={18} color={colors.primary} />}
       </View>
       <View style={{ flex: 1 }}>
         <Text variant="bodyMedium">{title}</Text>

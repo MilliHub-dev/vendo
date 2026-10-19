@@ -20,6 +20,7 @@ import { createMapboxGeocoder, createMapboxRouting, fallbackGeocoder } from './i
 import { PostgresDispatchRepository } from './modules/dispatch/repository.js';
 
 import { PostgresAddressRepository } from './modules/addresses/repository.js';
+import { createGooglePlaces } from './integrations/google-places.js';
 import { createPhotonGeocoder } from './integrations/photon.js';
 import { cachedRouting } from './integrations/cache.js';
 
@@ -83,6 +84,7 @@ export async function createDependencies(env: Env): Promise<Dependencies> {
     orders: pool ? new PostgresOrderRepository(pool) : { events: unavailable, receipt: unavailable, cancellation: unavailable, cancel: unavailable, reschedule: unavailable, dispute: unavailable, resolveDispute: unavailable, rating: unavailable, savePolicy: unavailable, policy: unavailable, riderAction: unavailable, processDue: unavailable },
     addresses: pool ? new PostgresAddressRepository(pool) : { cities: unavailable, city: unavailable, saveBoundary: unavailable, list: unavailable, get: unavailable, save: unavailable, delete: unavailable, preferredCity: unavailable, setCity: unavailable },
     // Photon (OpenStreetMap) first; Mapbox takes over whenever Photon cannot be reached.
+    ...(env.GOOGLE_MAPS_API_KEY ? { placeAutocomplete: createGooglePlaces(env.GOOGLE_MAPS_API_KEY) } : {}),
     geocoder: env.PHOTON_BASE_URL && env.MAPBOX_ACCESS_TOKEN_SERVER ? fallbackGeocoder(createPhotonGeocoder(env.PHOTON_BASE_URL), createMapboxGeocoder(env.MAPBOX_ACCESS_TOKEN_SERVER))
       : env.PHOTON_BASE_URL ? createPhotonGeocoder(env.PHOTON_BASE_URL)
       : env.MAPBOX_ACCESS_TOKEN_SERVER ? createMapboxGeocoder(env.MAPBOX_ACCESS_TOKEN_SERVER) : { search: unavailable, reverse: unavailable },

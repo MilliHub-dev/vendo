@@ -33,7 +33,7 @@ import type { DispatchRepository } from './modules/dispatch/schema.js';
 import { DispatchService } from './modules/dispatch/service.js';
 import { registerDispatchRoutes } from './modules/dispatch/routes.js';
 
-import type { AddressRepository, Geocoder } from './modules/addresses/schema.js';
+import type { AddressRepository, Geocoder, PlaceAutocomplete } from './modules/addresses/schema.js';
 import { AddressService } from './modules/addresses/service.js';
 import { registerAddressRoutes } from './modules/addresses/routes.js';
 
@@ -83,6 +83,8 @@ export interface Dependencies {
   payoutBanks?: import('./modules/rider-app/banks.js').PayoutBanks;
   adminPortal?: AdminPortalRepository;
   geocoder: Geocoder;
+  /** Google Places type-ahead search; absent when GOOGLE_MAPS_API_KEY isn't set. */
+  placeAutocomplete?: PlaceAutocomplete;
   dispatch: DispatchRepository;
   food: FoodRepository;
   routing: Routing;
@@ -180,7 +182,7 @@ export async function buildApp(env: Env, dependencies: Dependencies) {
   const dispatch = new DispatchService(dependencies.dispatch, profiles, dependencies.routing, env.DISPATCH_DELIVERY_CODE_SECRET);
   registerFoodRoutes(app, dependencies.auth, profiles, dependencies.food, food, dispatch);
   registerDispatchRoutes(app, dependencies.auth, dependencies.dispatch, dispatch, food);
-  registerAddressRoutes(app, dependencies.auth, new AddressService(dependencies.addresses, profiles, dependencies.geocoder, dependencies.routing), dependencies.limits);
+  registerAddressRoutes(app, dependencies.auth, new AddressService(dependencies.addresses, profiles, dependencies.geocoder, dependencies.routing, dependencies.placeAutocomplete), dependencies.limits);
   registerOrderRoutes(app, dependencies.auth, profiles, dependencies.orders);
   registerMatchingRoutes(app, dependencies.auth, profiles, dependencies.matching, new TrackingService(dependencies.matching, dependencies.routing));
   registerPaymentRoutes(app, dependencies.auth, profiles, dependencies.payments, new PaymentService(dependencies.payments, dependencies.paymentGateway));
